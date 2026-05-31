@@ -2095,21 +2095,38 @@ else:
             /* Responsive styles for main menu components */
             @media (max-width: 768px) {
                 .main-title {
-                    font-size: 2.2rem !important;
+                    font-size: 2.0rem !important;
                     margin-bottom: 2px !important;
                 }
                 .subtitle {
-                    font-size: 0.9rem !important;
-                    margin-bottom: 2rem !important;
+                    font-size: 0.85rem !important;
+                    margin-bottom: 1.5rem !important;
                     letter-spacing: 2px !important;
                 }
                 .section-title {
-                    font-size: 1.4rem !important;
+                    font-size: 1.3rem !important;
                 }
+                /* Force columns to stay side-by-side (2 columns) on small screens */
+                div[data-testid="stHorizontalBlock"] {
+                    display: flex !important;
+                    flex-wrap: wrap !important;
+                }
+                div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+                    width: calc(50% - 8px) !important;
+                    flex: 1 1 calc(50% - 8px) !important;
+                    min-width: calc(50% - 8px) !important;
+                    margin-bottom: 10px !important;
+                }
+                /* Ensure all button boxes are the exact same height and structure */
                 div.stButton > button {
-                    height: 120px !important;
-                    font-size: 0.95rem !important;
-                    padding: 8px !important;
+                    height: 125px !important;
+                    font-size: 0.85rem !important;
+                    padding: 8px 4px !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    line-height: 1.3 !important;
                 }
             }
         </style>
