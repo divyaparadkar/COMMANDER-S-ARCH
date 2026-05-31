@@ -143,7 +143,9 @@ def render_page_navigation(current_mode_name, key_prefix):
         "🧠 SRT (Situation Reaction)",
         "🗣️ GTO Lecturette",
         "🎙️ Speech & Mock Interview",
-        "📊 Performance Dashboard"
+        "📊 Performance Dashboard",
+        "🤝 Get Free Guidance",
+        "📚 Daily Newspaper Vocab"
     ]
     try:
         idx = modules.index(current_mode_name)
@@ -444,7 +446,19 @@ st.sidebar.markdown("<h1 style='text-align: center; color: #3b82f6; margin-botto
 st.sidebar.markdown("<p style='text-align: center; color: #10b981; font-weight: bold; font-size: 0.85rem; letter-spacing: 2px; margin-top: 0px;'>FOR SSB PREPARATION</p>", unsafe_allow_html=True)
 st.sidebar.markdown("---")
 
-test_mode_options = ["None Selected", "📋 PIQ Form Digitizer", "📐 OIR Practice Exam", "🖼️ PPDT / TAT Mode", "✍️ WAT (Word Association)", "🧠 SRT (Situation Reaction)", "🗣️ GTO Lecturette", "🎙️ Speech & Mock Interview", "📊 Performance Dashboard"]
+test_mode_options = [
+    "None Selected", 
+    "📋 PIQ Form Digitizer", 
+    "📐 OIR Practice Exam", 
+    "🖼️ PPDT / TAT Mode", 
+    "✍️ WAT (Word Association)", 
+    "🧠 SRT (Situation Reaction)", 
+    "🗣️ GTO Lecturette", 
+    "🎙️ Speech & Mock Interview", 
+    "📊 Performance Dashboard",
+    "🤝 Get Free Guidance",
+    "📚 Daily Newspaper Vocab"
+]
 selected_index = test_mode_options.index(st.session_state.current_mode) if st.session_state.current_mode in test_mode_options else 0
 
 sidebar_mode = st.sidebar.selectbox(
@@ -2013,6 +2027,60 @@ elif test_mode == "📊 Performance Dashboard":
                 st.write("**Evaluation summary:**")
                 st.info(h["analysis"].get("overall_evaluation", "N/A"))
 
+elif test_mode == "🤝 Get Free Guidance":
+    render_page_navigation("🤝 Get Free Guidance", "guidance")
+    st.markdown("""
+    <div class='card'>
+        <h2>🤝 Free SSB Preparation Guidance</h2>
+        <p>Welcome to the Commander's Arch free guidance portal. Here are the core pillars of SSB success:</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    g1, g2 = st.columns(2)
+    with g1:
+        st.info("🎯 **1. Psychological Tests (TAT, WAT, SRT)**\n"
+                "- Always write positive, active responses where the hero takes initiative.\n"
+                "- Avoid passive reactions or dependency on others.\n"
+                "- Focus on logical and realistic solutions.")
+        st.info("🗣️ **2. GTO & Group Dynamics**\n"
+                "- Be an active listener and support logical ideas.\n"
+                "- Do not dominate the discussion; cooperate with your group.\n"
+                "- Speak with clarity and confidence during the Lecturette.")
+    with g2:
+        st.info("🎙️ **3. Personal Interview**\n"
+                "- Be honest; the Interviewing Officer is highly trained to spot fabrications.\n"
+                "- Know your PIQ form details thoroughly (achievements, family income, hobby reasons).\n"
+                "- Stay aware of current national and international affairs.")
+        st.info("📐 **4. OIR & Screen-in**\n"
+                "- Speed is crucial; complete verbal and non-verbal booklets quickly.\n"
+                "- Do not waste time on a single difficult question.")
+
+elif test_mode == "📚 Daily Newspaper Vocab":
+    render_page_navigation("📚 Daily Newspaper Vocab", "vocab")
+    st.markdown("""
+    <div class='card'>
+        <h2>📚 Daily Newspaper Vocabulary</h2>
+        <p>Improve your Word Association Test (WAT) and speaking skills with today's high-frequency words:</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    words = [
+        {"word": "Resilient", "meaning": "Able to withstand or recover quickly from difficult conditions.", "example": "A resilient leader remains composed under pressure."},
+        {"word": "Altruism", "meaning": "The belief in or practice of disinterested concern for the well-being of others.", "example": "His altruism was evident when he volunteered for the rescue mission."},
+        {"word": "Pragmatic", "meaning": "Dealing with things sensibly and realistically.", "example": "Taking a pragmatic approach helped the team solve the crisis efficiently."},
+        {"word": "Equanimity", "meaning": "Mental calmness, composure, and evenness of temper, especially in a difficult situation.", "example": "She accepted both victory and defeat with equal equanimity."},
+        {"word": "Tenacity", "meaning": "The quality or fact of being able to grip something firmly; determination.", "example": "His tenacity in completing the task was praised by the assessors."}
+    ]
+    
+    for w in words:
+        st.markdown(f"""
+        <div class='card' style='border-left: 5px solid #10b981;'>
+            <h4 style='color: #10b981; margin: 0;'>🔑 {w['word']}</h4>
+            <p style='margin: 8px 0 4px 0;'><strong>Meaning:</strong> {w['meaning']}</p>
+            <p style='font-style: italic; color: #94a3b8; margin: 0;'><strong>Example:</strong> "{w['example']}"</p>
+        </div>
+        """, unsafe_allow_html=True)
+
 else:
     # Inject Custom CSS specifically for the Big Grid Buttons on Dashboard Menu
     st.markdown(
@@ -2058,31 +2126,71 @@ else:
                 letter-spacing: 0.5px !important;
             }
             
-            /* Big Custom Card Styling for Test Modes */
-            div.stButton > button {
-                width: 100% !important;
-                height: 160px !important;
-                font-family: 'Inter', sans-serif !important;
-                font-size: 1.1rem !important;
-                font-weight: 700 !important;
-                color: #ffffff !important;
-                background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
-                border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                border-radius: 16px !important;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-                white-space: pre-wrap !important;
-                line-height: 1.5 !important;
+            /* Custom Styling for App Header */
+            .app-header {
+                font-size: 24px !important;
+                font-weight: bold !important;
+                color: #FFFFFF !important;
+                background-color: #111827 !important;
                 padding: 15px !important;
+                text-align: center !important;
+                border-radius: 8px !important;
+                margin-bottom: 25px !important;
+                border: 1px solid #1e293b !important;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
+            }
+
+            /* Elegant card styling with crisp white background */
+            .ssb-card {
+                background-color: #FFFFFF !important;
+                border-radius: 15px !important;
+                padding: 20px !important;
+                text-align: center !important;
+                box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.05) !important;
+                margin-bottom: 10px !important;
+                border: 1px solid #E5E7EB !important;
+                transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                height: 150px !important;
             }
             
-            /* Hover effects like a true portfolio dashboard */
+            .ssb-card:hover {
+                transform: translateY(-3px) !important;
+                box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            /* Title inside the card with bold dark grey text */
+            .card-title {
+                color: #4B5563 !important;
+                font-weight: 700 !important;
+                font-size: 16px !important;
+                margin-top: 15px !important;
+                font-family: 'Source Sans Pro', sans-serif !important;
+            }
+
+            /* Clean blue action buttons spanning full width below cards */
+            div.stButton > button {
+                width: 100% !important;
+                height: auto !important;
+                font-family: 'Inter', sans-serif !important;
+                font-size: 0.95rem !important;
+                font-weight: 600 !important;
+                color: #ffffff !important;
+                background-color: #2563eb !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 8px 16px !important;
+                transition: background-color 0.2s ease !important;
+                margin-bottom: 20px !important;
+            }
             div.stButton > button:hover {
-                border-color: #3b82f6 !important;
-                color: #60a5fa !important;
-                background: linear-gradient(145deg, #1e293b 0%, #1e1b4b 100%) !important;
-                transform: translateY(-5px) !important;
-                box-shadow: 0 15px 30px rgba(59, 130, 246, 0.25) !important;
+                background-color: #1d4ed8 !important;
+                color: #ffffff !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2) !important;
             }
             
             /* Subtle line separator */
@@ -2112,21 +2220,21 @@ else:
                     flex-wrap: wrap !important;
                 }
                 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-                    width: calc(50% - 8px) !important;
-                    flex: 1 1 calc(50% - 8px) !important;
-                    min-width: calc(50% - 8px) !important;
-                    margin-bottom: 10px !important;
+                    width: calc(50% - 10px) !important;
+                    flex: 1 1 calc(50% - 10px) !important;
+                    min-width: calc(50% - 10px) !important;
+                    margin-bottom: 15px !important;
                 }
-                /* Ensure all button boxes are the exact same height and structure */
-                div.stButton > button {
-                    height: 125px !important;
-                    font-size: 0.85rem !important;
-                    padding: 8px 4px !important;
-                    display: flex !important;
-                    flex-direction: column !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    line-height: 1.3 !important;
+                .ssb-card {
+                    height: 130px !important;
+                    padding: 15px 10px !important;
+                }
+                .ssb-card div {
+                    font-size: 38px !important;
+                }
+                .card-title {
+                    font-size: 14px !important;
+                    margin-top: 10px !important;
                 }
             }
         </style>
@@ -2134,57 +2242,59 @@ else:
         unsafe_allow_html=True
     )
     
-    # Header Section
-    st.components.v1.html(get_main_app_logo(), height=155)
-    st.markdown("<br>", unsafe_allow_html=True)
+    # App Header Bar matching the requested mobile layout
+    st.markdown('<div class="app-header">🎖️ Target SSB - Commander\'s Arch</div>', unsafe_allow_html=True)
+    
+    # Dynamic list of 10 modules
+    modules = [
+        {"title": "PIQ Digitizer", "icon": "📋", "mode": "📋 PIQ Form Digitizer"},
+        {"title": "OIR Practice", "icon": "📐", "mode": "📐 OIR Practice Exam"},
+        {"title": "PPDT / TAT Mode", "icon": "🖼️", "mode": "🖼️ PPDT / TAT Mode"},
+        {"title": "WAT Module", "icon": "✍️", "mode": "✍️ WAT (Word Association)"},
+        {"title": "SRT Module", "icon": "🧠", "mode": "🧠 SRT (Situation Reaction)"},
+        {"title": "GTO Lecturette", "icon": "🗣️", "mode": "🗣️ GTO Lecturette"},
+        {"title": "Speech & Mock", "icon": "🎙️", "mode": "🎙️ Speech & Mock Interview"},
+        {"title": "Performance Dashboard", "icon": "📊", "mode": "📊 Performance Dashboard"},
+        {"title": "Get Free Guidance", "icon": "🤝", "mode": "Guidance"},
+        {"title": "Daily Newspaper Vocab", "icon": "📚", "mode": "Vocab"}
+    ]
     
     st.markdown("<p class='section-title'>⚡ Choose Your Training Module</p>", unsafe_allow_html=True)
     
-    # Designing a clean 4-Column Grid Layout for big, readable components
-    row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
-    row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
-    
-    # Row 1 Grid Buttons
-    with row1_col1:
-        if st.button("📋\n\nPIQ Digitizer\n(Profile Analyzer)", key="piq"):
-            st.session_state.current_mode = "📋 PIQ Form Digitizer"
-            st.rerun()
-            
-    with row1_col2:
-        if st.button("📐\n\nOIR Practice\n(Officer Intelligence)", key="oir"):
-            st.session_state.current_mode = "📐 OIR Practice Exam"
-            st.rerun()
-            
-    with row1_col3:
-        if st.button("🖼️\n\nPPDT / TAT\n(Picture Perception)", key="ppdt"):
-            st.session_state.current_mode = "🖼️ PPDT / TAT Mode"
-            st.rerun()
-            
-    with row1_col4:
-        if st.button("✍️\n\nWAT Module\n(Word Association)", key="wat"):
-            st.session_state.current_mode = "✍️ WAT (Word Association)"
-            st.rerun()
-            
-    # Row 2 Grid Buttons
-    with row2_col1:
-        if st.button("🧠\n\nSRT Module\n(Situation Reaction)", key="srt"):
-            st.session_state.current_mode = "🧠 SRT (Situation Reaction)"
-            st.rerun()
-            
-    with row2_col2:
-        if st.button("🗣️\n\nGTO Lecturette\n(Speaking Sprint)", key="gto"):
-            st.session_state.current_mode = "🗣️ GTO Lecturette"
-            st.rerun()
-            
-    with row2_col3:
-        if st.button("🎙️\n\nSpeech & Mock\n(Voice Interview)", key="mock"):
-            st.session_state.current_mode = "🎙️ Speech & Mock Interview"
-            st.rerun()
-            
-    with row2_col4:
-        if st.button("📊\n\nPerformance\n(Analytics Hub)", key="perf"):
-            st.session_state.current_mode = "📊 Performance Dashboard"
-            st.rerun()
+    # Loop to create 2 columns dynamically
+    for i in range(0, len(modules), 2):
+        col1, col2 = st.columns(2)
+        
+        # Left Card
+        with col1:
+            st.markdown(
+                f"""
+                <div class="ssb-card">
+                    <div style="font-size: 45px;">{modules[i]['icon']}</div>
+                    <div class="card-title">{modules[i]['title']}</div>
+                </div>
+                """, 
+                unsafe_allow_html=True
+            )
+            if st.button("Open ➔", key=f"btn_{i}", use_container_width=True):
+                st.session_state.current_mode = modules[i]['mode']
+                st.rerun()
+                
+        # Right Card (Check if index is valid)
+        with col2:
+            if i + 1 < len(modules):
+                st.markdown(
+                    f"""
+                    <div class="ssb-card">
+                        <div style="font-size: 45px;">{modules[i+1]['icon']}</div>
+                        <div class="card-title">{modules[i+1]['title']}</div>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+                if st.button("Open ➔", key=f"btn_{i+1}", use_container_width=True):
+                    st.session_state.current_mode = modules[i+1]['mode']
+                    st.rerun()
 
     # Decorative separator line
     st.markdown("<div class='separator'></div>", unsafe_allow_html=True)
