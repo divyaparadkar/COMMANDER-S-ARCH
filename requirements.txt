@@ -5,3 +5,5 @@ streamlit-mic-recorder
 google-generativeai
 pandas
 pillow
+nltk
+PyAudio
