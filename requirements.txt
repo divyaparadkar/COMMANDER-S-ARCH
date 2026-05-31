@@ -6,4 +6,3 @@ google-generativeai
 pandas
 pillow
 nltk
-PyAudio
