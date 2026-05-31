@@ -2243,7 +2243,7 @@ else:
     )
     
     # App Header Bar matching the requested mobile layout
-    st.markdown('<div class="app-header">🎖️ Target SSB - Commander\'s Arch</div>', unsafe_allow_html=True)
+    st.markdown('<div class="app-header">🎖️ COMMANDER\'S ARCH</div>', unsafe_allow_html=True)
     
     # Dynamic list of 10 modules
     modules = [
