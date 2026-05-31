@@ -2255,8 +2255,8 @@ else:
         {"title": "GTO Lecturette", "icon": "🗣️", "mode": "🗣️ GTO Lecturette"},
         {"title": "Speech & Mock", "icon": "🎙️", "mode": "🎙️ Speech & Mock Interview"},
         {"title": "Performance Dashboard", "icon": "📊", "mode": "📊 Performance Dashboard"},
-        {"title": "Get Free Guidance", "icon": "🤝", "mode": "Guidance"},
-        {"title": "Daily Newspaper Vocab", "icon": "📚", "mode": "Vocab"}
+        {"title": "Get Free Guidance", "icon": "🤝", "mode": "🤝 Get Free Guidance"},
+        {"title": "Daily Newspaper Vocab", "icon": "📚", "mode": "📚 Daily Newspaper Vocab"}
     ]
     
     st.markdown("<p class='section-title'>⚡ Choose Your Training Module</p>", unsafe_allow_html=True)
