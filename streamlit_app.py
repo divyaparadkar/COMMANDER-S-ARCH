@@ -110,6 +110,27 @@ st.markdown("""
     h1, h2, h3 {
         font-family: 'Outfit', 'Inter', sans-serif;
     }
+    
+    /* Responsive overrides for smaller viewports (Mobile & Tablet) */
+    @media (max-width: 768px) {
+        .block-container {
+            max-width: 100% !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
+        }
+        .card {
+            padding: 1rem !important;
+        }
+        .olq-tag {
+            font-size: 0.75rem !important;
+            padding: 0.2rem 0.5rem !important;
+        }
+        iframe {
+            max-width: 100% !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -2069,6 +2090,27 @@ else:
                 border-bottom: 2px solid #334155;
                 margin-top: 3rem;
                 margin-bottom: 3rem;
+            }
+            
+            /* Responsive styles for main menu components */
+            @media (max-width: 768px) {
+                .main-title {
+                    font-size: 2.2rem !important;
+                    margin-bottom: 2px !important;
+                }
+                .subtitle {
+                    font-size: 0.9rem !important;
+                    margin-bottom: 2rem !important;
+                    letter-spacing: 2px !important;
+                }
+                .section-title {
+                    font-size: 1.4rem !important;
+                }
+                div.stButton > button {
+                    height: 120px !important;
+                    font-size: 0.95rem !important;
+                    padding: 8px !important;
+                }
             }
         </style>
         """,
