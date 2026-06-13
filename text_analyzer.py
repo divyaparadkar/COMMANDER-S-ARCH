@@ -1,17 +1,22 @@
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 import os
 import re
 import json
-# pyrefly: ignore [missing-import]
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer  # pyrefly: ignore [missing-import]
-import google.generativeai as genai  # pyrefly: ignore [missing-import]
+_sia = None
 
-# Download safety for environments where it wasn't pre-downloaded
-try:
-    sia = SentimentIntensityAnalyzer()
-except LookupError:
-    nltk.download('vader_lexicon', quiet=True)
-    sia = SentimentIntensityAnalyzer()
+def get_sentiment_analyzer():
+    global _sia
+    if _sia is None:
+        # pyrefly: ignore [missing-import]
+        import nltk
+        from nltk.sentiment.vader import SentimentIntensityAnalyzer  # pyrefly: ignore [missing-import]
+        try:
+            _sia = SentimentIntensityAnalyzer()
+        except LookupError:
+            nltk.download('vader_lexicon', quiet=True)
+            _sia = SentimentIntensityAnalyzer()
+    return _sia
 
 OLQ_KEYWORDS = {
     "Effective Intelligence": ["solve", "idea", "logic", "reason", "intellect", "understand", "learn", "find", "analyze"],
@@ -30,6 +35,62 @@ OLQ_KEYWORDS = {
     "Courage": ["brave", "courage", "fearless", "risk", "bold", "face", "danger", "rescue"],
     "Stamina": ["stamina", "endure", "persist", "long", "hardwork", "effort", "tireless", "strength"]
 }
+
+MILITARY_PSYCHOLOGIST_SYSTEM_INSTRUCTION = """
+You are a Senior Military Psychologist and Assessor at a Services Selection Board (SSB) of the Indian Armed Forces. Your role is to conduct an objective, rigorous, and deep psychological assessment of candidates aspiring to become commissioned officers.
+
+=== ASSESSMENT FRAMEWORK (15 OFFICER LIKE QUALITIES) ===
+Factor I: Planning & Organising
+- Effective Intelligence (EI): Practical intelligence, solving everyday problems with available resources.
+- Reasoning Ability (RA): Logical, cause-and-effect thinking.
+- Organising Ability (OA): Arranging resources systematically to achieve goals.
+- Power of Expression (PE): Clarity and impact of language.
+
+Factor II: Social Adjustment
+- Social Adaptability (SA): Adapting to new environments and cooperating.
+- Cooperation (CO): Working selflessly with others for a team goal.
+- Sense of Responsibility (SR): Accountability, duty, and moral values.
+
+Factor III: Social Effectiveness
+- Initiative (IN): Taking the first step and leading.
+- Self-Confidence (SC): Faith in one's capability under stress.
+- Speed of Decision (SD): Arriving at workable solutions quickly.
+- Ability to Influence (AI): Motivating and guiding a group.
+- Liveliness (LV): Optimism and composure under pressure.
+
+Factor IV: Dynamic
+- Determination (DT): Grit, persistence, and effort.
+- Courage (CR): Boldness, facing danger/risks.
+- Stamina (SM): Physical/mental endurance.
+
+=== TEST TYPES & ANALYSIS RULES ===
+- TAT / PPDT: Candidate is shown an image and writes a story (Past, Present, Future).
+  * Analyze the Hero (protagonist). Ensure they are active, self-reliant, and realistic. Beware of passive behavior (calling help immediately, doing nothing) or superhuman feats.
+  * Check the solution: Must be realistic and logical. Look out for pre-planned/coached stories (e.g. forcing blood donation camps onto unrelated images).
+- WAT: Candidate writes a short, rapid sentence for a word.
+  * Active/Action-Oriented (Strong) shows resilience and character.
+  * Observational/Factual (Neutral) is passive.
+  * Superficial/Definition (Weak) shows defensive block.
+  * Negative/Anxious/Escapist (Alert) shows low stress tolerance or defeatism.
+  * Coached: Watch for artificial, forced patriotic/military sentences.
+- SRT: Candidate reaction to situations. Check for realism, speed, and completeness of action.
+
+=== OUTPUT REQUIREMENT ===
+You must perform a deep psychological analysis. You must output the analysis EXACTLY as a valid JSON object with the following keys. Do not include markdown code block formatting (like ```json), just output the raw JSON text.
+
+JSON Schema:
+{
+  "sentiment": float (-1.0 to 1.0),
+  "confidence_score": float (0.0 to 1.0),
+  "olqs_demonstrated": {
+    "OLQ_Name": "Brief analysis of how this quality is displayed (or why it is lacking/artificial)."
+  },
+  "overall_evaluation": "A precise paragraph summarizing the candidate's personality traits, strengths, vulnerabilities, and projection issues (e.g., passive mindset, coached templates).",
+  "actionable_feedback": [
+    "Specific, concrete point for improvement."
+  ]
+}
+"""
 
 def local_analyze_text(text: str) -> dict:
     """
@@ -53,6 +114,7 @@ def local_analyze_text(text: str) -> dict:
     word_count = len(words)
     
     try:
+        import nltk
         sentences = nltk.sent_tokenize(text)
         sentence_count = len(sentences)
     except Exception:
@@ -60,6 +122,7 @@ def local_analyze_text(text: str) -> dict:
         sentence_count = len([s for s in sentences if s.strip()])
 
     # Sentiment analysis (VADER)
+    sia = get_sentiment_analyzer()
     scores = sia.polarity_scores(text)
     sentiment = scores['compound']  # ranges from -1 to +1
     
@@ -120,40 +183,32 @@ def gemini_analyze_text(text: str, api_key: str, test_type: str, context: str = 
     Returns a dict containing sentiment, confidence_score, olqs_demonstrated, overall_evaluation, and actionable_feedback.
     """
     if not api_key:
-        return {"error": "API Key is missing. Falling back to local analysis."}
+        local_res = local_analyze_text(text)
+        local_res["error"] = "API Key is missing. Falling back to local analysis."
+        local_res["local_fallback"] = True
+        return local_res
         
     try:
+        # pyrefly: ignore [missing-import]
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         # Using gemini-2.5-flash as default, fallback to gemini-1.5-flash if needed
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        # Initialize generative model with the psychologist system instruction
+        model = genai.GenerativeModel(
+            model_name='gemini-2.5-flash',
+            system_instruction=MILITARY_PSYCHOLOGIST_SYSTEM_INSTRUCTION
+        )
         
         prompt = f"""
-You are an expert Psychologist and SSB (Services Selection Board) Assessor.
-Evaluate the candidate's response in the {test_type} test for officer-like qualities (OLQs).
-
-=== Test Type Details ===
-- TAT / PPDT: Candidate is shown an image and writes a complete story (past, present, future) about it.
-- WAT (Word Association Test): Candidate is shown a word and must write a short sentence/association.
-- SRT (Situation Reaction Test): Candidate is presented with a challenging situation and describes their reaction.
+Evaluate the candidate's response for the {test_type} test.
 
 === Candidate's Response ===
 "{text}"
 """
         if context:
-            prompt += f"\n=== Context/Prompt shown to candidate (e.g. Word or Situation or Image description) ===\n\"{context}\"\n"
+            prompt += f"\n=== Context/Prompt shown to candidate (e.g. Word, Situation or Image description) ===\n\"{context}\"\n"
 
-        prompt += """
-Perform a deep psychological analysis. You must output the analysis EXACTLY as a valid JSON object with the following keys. Do not include markdown code block formatting (like ```json), just output the raw JSON text.
-
-Keys required in JSON:
-1. "sentiment": A float value between -1.0 (very negative/defeatist) and 1.0 (highly positive/constructive).
-2. "confidence_score": A float value between 0.0 (anxious/unsure) and 1.0 (very assertive/confident).
-3. "olqs_demonstrated": A dictionary/object where keys are OLQs demonstrated (e.g., "Effective Intelligence", "Social Adaptability", "Initiative", "Determination", "Courage", "Sense of Responsibility", "Organising Ability") and values are brief explanations of how they were demonstrated in the text. List only the relevant OLQs (maximum 4-5).
-4. "overall_evaluation": A brief paragraph summarizing the candidate's personality traits shown here, focusing on whether they have a constructive, active problem-solving mindset, or if they show escapism, passivity, or fear.
-5. "actionable_feedback": A list of 2-3 specific, actionable points for improvement.
-
-JSON Output:
-"""
+        prompt += "\nOutput the JSON analysis exactly as specified in the system instruction."
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
@@ -166,10 +221,10 @@ JSON Output:
         return result
         
     except Exception as e:
-        return {
-            "error": f"Failed to connect to Gemini API: {str(e)}. Using local analysis instead.",
-            "local_fallback": True
-        }
+        local_res = local_analyze_text(text)
+        local_res["error"] = f"Failed to connect to Gemini API: {str(e)}. Using local analysis instead."
+        local_res["local_fallback"] = True
+        return local_res
 
 def generate_interview_questions(profile: str, api_key: str, piq_data: dict = None) -> list:
     """
@@ -185,6 +240,8 @@ def generate_interview_questions(profile: str, api_key: str, piq_data: dict = No
         return random.sample(questions, min(5, len(questions)))
         
     try:
+        # pyrefly: ignore [missing-import]
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         
@@ -235,6 +292,8 @@ def evaluate_interview_answer(question: str, answer: str, api_key: str) -> dict:
         return local_analyze_text(answer)
         
     try:
+        # pyrefly: ignore [missing-import]
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
@@ -320,6 +379,8 @@ def analyze_piq_data(piq_data: dict, api_key: str) -> dict:
         }
 
     try:
+        # pyrefly: ignore [missing-import]
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
@@ -398,6 +459,8 @@ def evaluate_lecturette_speech(topic: str, speech_text: str, api_key: str) -> di
         return local_result
 
     try:
+        # pyrefly: ignore [missing-import]
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""

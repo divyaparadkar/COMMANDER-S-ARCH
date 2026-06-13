@@ -305,3 +305,32 @@ def get_main_app_logo():
         <text x="175" y="122" font-family="'Inter', sans-serif" font-size="12" fill="#64748b">Unified Cognitive & Psychological Assessment Platforms</text>
     </svg>
     """
+
+def get_agent_logo():
+    return """
+    <svg width="100%" height="130" viewBox="0 0 600 130" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="agent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#3b82f6" />
+                <stop offset="100%" stop-color="#10b981" />
+            </linearGradient>
+            <filter id="glow-agent" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+        </defs>
+        <rect width="100%" height="100%" fill="#0f172a" rx="12"/>
+        <g transform="translate(30, 15)">
+            <!-- Brain / Shield Combination -->
+            <path d="M 60 10 L 92 25 L 92 58 C 92 82 60 94 60 94 C 60 94 28 82 28 58 L 28 25 Z" fill="none" stroke="url(#agent-grad)" stroke-width="4.5" filter="url(#glow-agent)"/>
+            <!-- Inner Brain Folds -->
+            <path d="M 45 40 C 35 40 35 55 45 55 C 38 65 50 72 60 62 C 70 72 82 65 75 55 C 85 55 85 40 75 40 C 75 30 45 30 45 40 Z" fill="none" stroke="#60a5fa" stroke-width="2" opacity="0.8"/>
+            <!-- Spark / Star inside the brain -->
+            <polygon points="60,40 62,46 68,48 62,50 60,56 58,50 52,48 58,46" fill="#facc15" />
+        </g>
+        <!-- Title Text -->
+        <text x="170" y="60" font-family="'Outfit', 'Inter', sans-serif" font-size="28" font-weight="bold" fill="#ffffff">SSB Psychologist Agent</text>
+        <text x="170" y="90" font-family="'Inter', sans-serif" font-size="14" fill="#94a3b8">Active OLQ profiling, cognitive evaluation & feedback engine</text>
+    </svg>
+    """
+

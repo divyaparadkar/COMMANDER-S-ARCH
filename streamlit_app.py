@@ -1,14 +1,36 @@
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
 import streamlit as st  # pyrefly: ignore [missing-import]
 import time
 import os
 import random
-from image_bank import get_random_ppdt, get_ppdt_logo, get_wat_logo, get_srt_logo, get_interview_logo, get_piq_logo, get_oir_logo, get_lecturette_logo, get_dashboard_logo, get_main_app_logo
+from image_bank import get_random_ppdt, get_ppdt_logo, get_wat_logo, get_srt_logo, get_interview_logo, get_piq_logo, get_oir_logo, get_lecturette_logo, get_dashboard_logo, get_main_app_logo, get_agent_logo
 from text_analyzer import local_analyze_text, gemini_analyze_text, generate_interview_questions, evaluate_interview_answer, analyze_piq_data, evaluate_lecturette_speech
 from data_bank import WAT_WORDS, SRT_SITUATIONS, OIR_VERBAL_QUESTIONS, OIR_NON_VERBAL_QUESTIONS, LECTURETTE_TOPICS
-from gtts import gTTS  # pyrefly: ignore [missing-import]
-import speech_recognition as sr  # pyrefly: ignore [missing-import]
-from streamlit_mic_recorder import mic_recorder  # pyrefly: ignore [missing-import]
 import io
+from database import init_db, register_user, authenticate_user, update_user_api_key, update_user_piq, save_user_attempt, get_user_history, update_user_password
+
+# Initialize database once
+@st.cache_resource
+def initialize_database():
+    init_db()
+
+initialize_database()
+
+# Global URL parameter mapping
+param_to_mode = {
+    "PIQ_Digitizer": "📋 PIQ Form Digitizer",
+    "OIR_Practice": "📐 OIR Practice Exam",
+    "PPDT_TAT_Mode": "🖼️ PPDT / TAT Mode",
+    "WAT_Module": "✍️ WAT (Word Association)",
+    "SRT_Module": "🧠 SRT (Situation Reaction)",
+    "GTO_Lecturette": "🗣️ GTO Lecturette",
+    "Speech_Mock": "🎙️ Speech & Mock Interview",
+    "Performance_Dashboard": "📊 Performance Dashboard",
+    "Get_Free_Guidance": "🤝 Get Free Guidance",
+    "Daily_Newspaper_Vocab": "📚 Daily Newspaper Vocab"
+}
+mode_to_param = {v: k for k, v in param_to_mode.items()}
 
 # Set page config
 st.set_page_config(
@@ -31,11 +53,21 @@ st.markdown("""
         background-size: 400% 400% !important;
         animation: gradientBG 20s ease infinite !important;
     }
-    .block-container {
+    [data-testid="stHeader"], header {
+        visibility: hidden !important;
+        display: none !important;
+        height: 0px !important;
+    }
+    [data-testid="stDecoration"] {
+        visibility: hidden !important;
+        display: none !important;
+    }
+    .block-container, [data-testid="stAppViewBlockContainer"] {
         max-width: 95% !important;
         padding-left: 2.5rem !important;
         padding-right: 2.5rem !important;
-        padding-top: 1.5rem !important;
+        padding-top: 0px !important;
+        margin-top: 0px !important;
         padding-bottom: 1.5rem !important;
     }
     .main {
@@ -43,6 +75,11 @@ st.markdown("""
         color: #f8fafc;
     }
     
+    /* Robust system font stack for cross-platform visual consistency */
+    html, body, [data-testid="stAppViewContainer"], .stApp, p, span, div, h1, h2, h3, h4, h5, h6, input, textarea, select, button, label, .card-title, .ssb-card {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    }
+
     /* Ensure high contrast readable text inside all views and modules */
     .stMarkdown, p, span, label, .stText, div[data-testid="stMarkdownContainer"] {
         color: #f1f5f9 !important;
@@ -63,6 +100,7 @@ st.markdown("""
         background-color: #1e293b !important;
     }
     
+    /* Standard/Global button styling */
     .stButton>button {
         background-color: #2563eb;
         color: white;
@@ -70,6 +108,7 @@ st.markdown("""
         padding: 0.5rem 1.5rem;
         font-weight: bold;
         transition: all 0.3s ease;
+        border: 1px solid #334155;
     }
     .stButton>button:hover {
         background-color: #1d4ed8;
@@ -107,8 +146,74 @@ st.markdown("""
         border-radius: 4px;
         margin-bottom: 0.5rem;
     }
-    h1, h2, h3 {
-        font-family: 'Outfit', 'Inter', sans-serif;
+
+    /* All-in-one clickable card design */
+    .ssb-card {
+        background-color: #1e293b !important;
+        border-radius: 12px 12px 0px 0px !important;
+        padding: 16px !important;
+        text-align: center !important;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid #334155 !important;
+        border-bottom: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 140px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        word-wrap: break-word !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    }
+    .card-icon {
+        font-size: clamp(32px, 8vw, 42px) !important;
+        margin-top: 5px !important;
+        margin-bottom: 8px !important;
+        line-height: 1.1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    .card-title {
+        color: #f1f5f9 !important;
+        font-weight: 700 !important;
+        font-size: clamp(11px, 3.2vw, 15px) !important;
+        margin-top: 4px !important;
+        margin-bottom: 4px !important;
+        line-height: 1.3 !important;
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+    }
+
+    /* Cohesive Dashboard component buttons */
+    div[data-testid="column"]:has(.ssb-card) div.stButton > button {
+        width: 100% !important;
+        height: auto !important;
+        font-size: 14px !important;
+        border: 1px solid #334155 !important;
+        border-top: none !important;
+        border-radius: 0px 0px 12px 12px !important;
+        padding: 8px 16px !important;
+        margin-top: -1rem !important; /* Pull up to attach seamlessly under the card */
+        margin-bottom: 16px !important;
+        transform: none !important; /* Prevent hover translation to maintain cohesion */
+        box-shadow: none !important;
+        background-color: #2563eb !important;
+        color: white !important;
+        font-weight: bold !important;
+    }
+    div[data-testid="column"]:has(.ssb-card) div.stButton > button:hover {
+        background-color: #1d4ed8 !important;
+        transform: none !important;
+    }
+    div[data-testid="column"]:has(.ssb-card) div.stButton > button:active {
+        transform: scale(0.98) !important;
     }
     
     /* Responsive overrides for smaller viewports (Mobile & Tablet) */
@@ -129,6 +234,22 @@ st.markdown("""
         }
         iframe {
             max-width: 100% !important;
+        }
+        /* Enforce a tight 2-column grid on mobile/tablet */
+        div[data-testid="stHorizontalBlock"]:has(.ssb-card) {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            flex-direction: row !important;
+            gap: 10px !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(.ssb-card) > div[data-testid="column"],
+        div[data-testid="stHorizontalBlock"]:has(.ssb-card) > div[data-testid="stColumn"] {
+            width: calc(50% - 5px) !important;
+            flex: 1 1 calc(50% - 5px) !important;
+            min-width: calc(50% - 5px) !important;
+            margin-bottom: 10px !important;
+            padding-left: 0px !important;
+            padding-right: 0px !important;
         }
     }
 </style>
@@ -159,15 +280,22 @@ def render_page_navigation(current_mode_name, key_prefix):
             prev_label = f"⬅️ {modules[idx-1]}"
             if st.button(prev_label, key=f"{key_prefix}_prev", use_container_width=True):
                 st.session_state.current_mode = modules[idx-1]
+                param = mode_to_param.get(modules[idx-1], "None")
+                st.query_params["page"] = param
+                st.session_state.last_seen_page = param
                 st.rerun()
         else:
             if st.button("⬅️ Main Dashboard", key=f"{key_prefix}_prev_home", use_container_width=True):
                 st.session_state.current_mode = "None Selected"
+                st.query_params["page"] = "None"
+                st.session_state.last_seen_page = "None"
                 st.rerun()
                 
     with col2:
         if st.button("🏠 Home", key=f"{key_prefix}_home", use_container_width=True):
             st.session_state.current_mode = "None Selected"
+            st.query_params["page"] = "None"
+            st.session_state.last_seen_page = "None"
             st.rerun()
             
     with col3:
@@ -175,14 +303,29 @@ def render_page_navigation(current_mode_name, key_prefix):
             next_label = f"{modules[idx+1]} ➡️"
             if st.button(next_label, key=f"{key_prefix}_next", use_container_width=True):
                 st.session_state.current_mode = modules[idx+1]
+                param = mode_to_param.get(modules[idx+1], "None")
+                st.query_params["page"] = param
+                st.session_state.last_seen_page = param
                 st.rerun()
         else:
             if st.button("🏠 Main Dashboard ➡️", key=f"{key_prefix}_next_home", use_container_width=True):
                 st.session_state.current_mode = "None Selected"
+                st.query_params["page"] = "None"
+                st.session_state.last_seen_page = "None"
                 st.rerun()
     st.markdown("---")
 
 # Initialize Session State
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = None
+if 'username' not in st.session_state:
+    st.session_state.username = ""
+if 'auth_error' not in st.session_state:
+    st.session_state.auth_error = ""
+if 'auth_success' not in st.session_state:
+    st.session_state.auth_success = ""
 if 'api_key' not in st.session_state:
     st.session_state.api_key = ""
 if 'history' not in st.session_state:
@@ -317,7 +460,7 @@ if not st.session_state.splash_shown:
         """,
         unsafe_allow_html=True
     )
-    st.components.v1.html(
+    st.iframe(
         """
         <div class="splash-container">
             <div class="military-crest">
@@ -434,13 +577,149 @@ if not st.session_state.splash_shown:
         """,
         height=1000
     )
-    time.sleep(2.5)
+    time.sleep(0.5)
     st.session_state.splash_shown = True
     st.rerun()
+    st.stop()
 
-# Sidebar Navigation & Settings
+def render_login_page():
+    # Hide sidebar during login
+    st.markdown(
+        """
+        <style>
+            [data-testid="stSidebar"] { display: none !important; }
+            [data-testid="stHeader"] { display: none !important; }
+            div[data-testid="stForm"] {
+                background: rgba(30, 41, 59, 0.45) !important;
+                backdrop-filter: blur(12px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.08) !important;
+                border-radius: 16px !important;
+                padding: 2rem !important;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    # Header Logo/Title
+    st.markdown(
+        """
+        <div style="text-align: center; margin-top: 3rem;">
+            <div style="font-size: 3rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 8px rgba(59,130,246,0.3));">
+                COMMANDER'S ARCH
+            </div>
+            <div style="color: #10b981; font-weight: bold; font-size: 0.95rem; letter-spacing: 3px; margin-top: 5px; margin-bottom: 2rem; text-transform: uppercase;">
+                Secure Candidate Login
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Render error/success messages from previous actions
+        if st.session_state.auth_error:
+            st.error(st.session_state.auth_error)
+            st.session_state.auth_error = ""
+        if st.session_state.auth_success:
+            st.success(st.session_state.auth_success)
+            st.session_state.auth_success = ""
+
+        tab1, tab2 = st.tabs(["🔒 Secure Login", "📝 Create Account"])
+        
+        with tab1:
+            with st.form("login_form", clear_on_submit=False):
+                st.markdown("<h4 style='text-align: center; margin-bottom: 1rem; color: #ffffff;'>Sign In to Your Account</h4>", unsafe_allow_html=True)
+                username = st.text_input("Username", placeholder="Enter your username", key="login_username")
+                password = st.text_input("Password", type="password", placeholder="Enter your password", key="login_password")
+                submit = st.form_submit_button("Sign In ➔", use_container_width=True)
+                
+                if submit:
+                    if not username or not password:
+                        st.session_state.auth_error = "Please fill in all fields."
+                        st.rerun()
+                    else:
+                        user = authenticate_user(username, password)
+                        if user:
+                            # Set session state variables
+                            st.session_state.logged_in = True
+                            st.session_state.user_id = user['id']
+                            st.session_state.username = user['username']
+                            st.session_state.api_key = user['api_key']
+                            if user['piq_data']:
+                                import datetime
+                                if 'dob' in user['piq_data'] and user['piq_data']['dob']:
+                                    try:
+                                        if isinstance(user['piq_data']['dob'], str):
+                                            user['piq_data']['dob'] = datetime.datetime.strptime(user['piq_data']['dob'], "%Y-%m-%d").date()
+                                    except Exception:
+                                        pass
+                                st.session_state.piq_data = user['piq_data']
+                            
+                            # Load history
+                            history = get_user_history(user['id'])
+                            st.session_state.history = history if history else []
+                            
+                            st.session_state.auth_success = f"Welcome back, {username}!"
+                            st.rerun()
+                        else:
+                            st.session_state.auth_error = "Invalid username or password."
+                            st.rerun()
+                            
+        with tab2:
+            with st.form("register_form", clear_on_submit=False):
+                st.markdown("<h4 style='text-align: center; margin-bottom: 1rem; color: #ffffff;'>Create a New Profile</h4>", unsafe_allow_html=True)
+                new_username = st.text_input("Username", placeholder="Choose a unique username", key="reg_username")
+                new_email = st.text_input("Email Address (Optional)", placeholder="email@example.com", key="reg_email")
+                new_password = st.text_input("Password", type="password", placeholder="Create a strong password", key="reg_password")
+                confirm_password = st.text_input("Confirm Password", type="password", placeholder="Repeat your password", key="reg_confirm")
+                submit_reg = st.form_submit_button("Create Profile ➔", use_container_width=True)
+                
+                if submit_reg:
+                    if not new_username or not new_password:
+                        st.session_state.auth_error = "Username and password are required."
+                        st.rerun()
+                    elif new_password != confirm_password:
+                        st.session_state.auth_error = "Passwords do not match."
+                        st.rerun()
+                    else:
+                        success, message = register_user(new_username, new_password, new_email if new_email else None)
+                        if success:
+                            st.session_state.auth_success = "Account created successfully! You can now log in using the Login tab."
+                            st.rerun()
+                        else:
+                            st.session_state.auth_error = message
+                            st.rerun()
+
+# Check login status
+if st.session_state.splash_shown and not st.session_state.logged_in:
+    render_login_page()
+    st.stop()
+
+if 'last_seen_page' not in st.session_state:
+    st.session_state.last_seen_page = None
+
+# Detect external URL parameter changes (Back button, manual navigation, or link clicks)
+if "page" in st.query_params:
+    page_param = st.query_params["page"]
+    if page_param != st.session_state.last_seen_page:
+        st.session_state.last_seen_page = page_param
+        if page_param in param_to_mode:
+            st.session_state.current_mode = param_to_mode[page_param]
+        elif page_param == "None":
+            st.session_state.current_mode = "None Selected"
+
 if 'current_mode' not in st.session_state:
     st.session_state.current_mode = "None Selected"
+
+# Ensure the URL matches the current session state
+current_param = mode_to_param.get(st.session_state.current_mode, "None")
+if st.query_params.get("page") != current_param:
+    st.query_params["page"] = current_param
+    st.session_state.last_seen_page = current_param
 
 st.sidebar.markdown("<h1 style='text-align: center; color: #3b82f6; margin-bottom: 0px;'>🎖️ COMMANDER'S ARCH</h1>", unsafe_allow_html=True)
 st.sidebar.markdown("<p style='text-align: center; color: #10b981; font-weight: bold; font-size: 0.85rem; letter-spacing: 2px; margin-top: 0px;'>FOR SSB PREPARATION</p>", unsafe_allow_html=True)
@@ -468,6 +747,8 @@ sidebar_mode = st.sidebar.selectbox(
 )
 if sidebar_mode != st.session_state.current_mode:
     st.session_state.current_mode = sidebar_mode
+    st.query_params["page"] = mode_to_param.get(sidebar_mode, "None")
+    st.session_state.last_seen_page = mode_to_param.get(sidebar_mode, "None")
     st.rerun()
 
 test_mode = st.session_state.current_mode
@@ -483,18 +764,76 @@ api_key_input = st.sidebar.text_input(
 )
 if api_key_input != st.session_state.api_key:
     st.session_state.api_key = api_key_input
+    if st.session_state.get('logged_in') and st.session_state.get('user_id'):
+        update_user_api_key(st.session_state.user_id, api_key_input)
+    st.rerun()
 
-# Helpers
+if st.session_state.api_key:
+    st.sidebar.markdown(
+        """
+        <div style='background-color: #143021; border-left: 4px solid #22c55e; padding: 10px; border-radius: 6px; margin-top: 10px;'>
+            <span style='color: #22c55e; font-weight: bold;'>🟢 Psychologist Agent: ACTIVE</span><br>
+            <span style='color: #a7f3d0; font-size: 0.8rem;'>Deep OLQ analysis and cognitive profiling enabled.</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+else:
+    st.sidebar.markdown(
+        """
+        <div style='background-color: #311c1c; border-left: 4px solid #ef4444; padding: 10px; border-radius: 6px; margin-top: 10px;'>
+            <span style='color: #ef4444; font-weight: bold;'>⚪ Psychologist Agent: STANDBY</span><br>
+            <span style='color: #fca5a5; font-size: 0.8rem;'>Using local heuristics. Enter Gemini API Key to activate.</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("User Account")
+st.sidebar.write(f"Logged in as: **{st.session_state.username}**")
+with st.sidebar.expander("🔑 Change Password"):
+    with st.form("change_password_form", clear_on_submit=True):
+        new_pw = st.text_input("New Password", type="password", placeholder="Enter new password")
+        confirm_pw = st.text_input("Confirm Password", type="password", placeholder="Confirm new password")
+        change_pw_btn = st.form_submit_button("Update Password", use_container_width=True)
+        if change_pw_btn:
+            if not new_pw:
+                st.error("Password cannot be empty.")
+            elif new_pw != confirm_pw:
+                st.error("Passwords do not match.")
+            else:
+                success, msg = update_user_password(st.session_state.user_id, new_pw)
+                if success:
+                    st.success("✅ Password updated!")
+                else:
+                    st.error(msg)
+if st.sidebar.button("🔓 Log Out", use_container_width=True):
+    st.session_state.logged_in = False
+    st.session_state.user_id = None
+    st.session_state.username = ""
+    st.session_state.api_key = ""
+    st.session_state.history = []
+    st.query_params.clear()
+    st.rerun()
+
 def save_analysis(test_type, text, analysis, context=""):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     st.session_state.history.append({
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": timestamp,
         "test_type": test_type,
         "text": text,
         "context": context,
         "analysis": analysis
     })
+    if st.session_state.get('logged_in') and st.session_state.get('user_id'):
+        try:
+            save_user_attempt(st.session_state.user_id, timestamp, test_type, text, context, analysis)
+        except Exception as e:
+            st.error(f"Error saving attempt to database: {e}")
 
 def render_analysis_results(res):
+    st.iframe(get_agent_logo(), height=130)
     st.markdown("### 📊 Psychological Analysis Report")
     
     # Sentiment & Confidence columns
@@ -541,7 +880,7 @@ def render_analysis_results(res):
 # 1. PPDT / TAT Mode
 # -----------------
 if test_mode == "🖼️ PPDT / TAT Mode":
-    st.components.v1.html(get_ppdt_logo(), height=130)
+    st.iframe(get_ppdt_logo(), height=130)
     render_page_navigation("🖼️ PPDT / TAT Mode", "ppdt")
 
 
@@ -630,7 +969,7 @@ if test_mode == "🖼️ PPDT / TAT Mode":
 # 2. WAT Mode
 # -----------------
 elif test_mode == "✍️ WAT (Word Association)":
-    st.components.v1.html(get_wat_logo(), height=130)
+    st.iframe(get_wat_logo(), height=130)
     render_page_navigation("✍️ WAT (Word Association)", "wat")
 
 
@@ -719,7 +1058,7 @@ elif test_mode == "✍️ WAT (Word Association)":
 # 3. SRT Mode
 # -----------------
 elif test_mode == "🧠 SRT (Situation Reaction)":
-    st.components.v1.html(get_srt_logo(), height=130)
+    st.iframe(get_srt_logo(), height=130)
     render_page_navigation("🧠 SRT (Situation Reaction)", "srt")
 
     
@@ -771,7 +1110,7 @@ elif test_mode == "🧠 SRT (Situation Reaction)":
 # 3.5 Speech & Mock Interview Mode
 # -----------------
 elif test_mode == "🎙️ Speech & Mock Interview":
-    st.components.v1.html(get_interview_logo(), height=130)
+    st.iframe(get_interview_logo(), height=130)
     render_page_navigation("🎙️ Speech & Mock Interview", "mock")
 
 
@@ -832,6 +1171,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
                 if not st.session_state.get('interview_tts_played') or st.session_state.get('interview_tts_q_idx') != idx:
                     with st.spinner("Generating speech..."):
                         try:
+                            from gtts import gTTS  # pyrefly: ignore [missing-import]
                             tts = gTTS(text=current_q, lang='en')
                             fp = io.BytesIO()
                             tts.write_to_fp(fp)
@@ -852,6 +1192,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
             st.write("Click the button below and speak clearly into your microphone. Click stop when finished.")
             
             # Use streamlit-mic-recorder to record WAV bytes from browser
+            from streamlit_mic_recorder import mic_recorder  # pyrefly: ignore [missing-import]
             audio_data = mic_recorder(
                 start_prompt="🎙️ Start Recording",
                 stop_prompt="🛑 Stop Recording",
@@ -866,6 +1207,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
                     st.session_state[f"last_recorded_id_{idx}"] = audio_data.get("id")
                     with st.spinner("Transcribing your speech to text..."):
                         try:
+                            import speech_recognition as sr  # pyrefly: ignore [missing-import]
                             r = sr.Recognizer()
                             audio_file = io.BytesIO(audio_data["bytes"])
                             with sr.AudioFile(audio_file) as source:
@@ -999,7 +1341,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
 # 3.8 PIQ Form Digitizer
 # -----------------
 elif test_mode == "📋 PIQ Form Digitizer":
-    st.components.v1.html(get_piq_logo(), height=130)
+    st.iframe(get_piq_logo(), height=130)
     render_page_navigation("📋 PIQ Form Digitizer", "piq")
 
 
@@ -1224,7 +1566,18 @@ elif test_mode == "📋 PIQ Form Digitizer":
             for att in p['previous_attempts_details']:
                 piq_markdown += f"- **Entry:** {att.get('Type of Entry')} | Board: {att.get('Place & SSB No.')} | Date: {att.get('Date')} | Batch/Chest: {att.get('Batch & Chest No.')} | Result: {att.get('Result')}\n"
 
-        st.info("ℹ️ Your PIQ details are automatically saved in this browser session. You can copy the raw summary or run the AI Psychological assessment below.")
+        st.info("ℹ️ Your PIQ details are saved in this browser session. You can copy the raw summary, save to the database to persist them, or run the AI Psychological assessment below.")
+        
+        if st.session_state.get('logged_in') and st.session_state.get('user_id'):
+            if st.button("💾 Save PIQ Form to Database", use_container_width=True):
+                piq_to_save = p.copy()
+                if piq_to_save.get("dob"):
+                    piq_to_save["dob"] = str(piq_to_save["dob"])
+                try:
+                    update_user_piq(st.session_state.user_id, piq_to_save)
+                    st.success("✅ PIQ data successfully saved to database!")
+                except Exception as e:
+                    st.error(f"❌ Error saving PIQ data: {e}")
         
         with st.expander("📄 View Fully Formatted Summary"):
             st.markdown(piq_markdown)
@@ -1269,7 +1622,7 @@ elif test_mode == "📋 PIQ Form Digitizer":
 # 3.9 OIR Practice Exam
 # -----------------
 elif test_mode == "📐 OIR Practice Exam":
-    st.components.v1.html(get_oir_logo(), height=130)
+    st.iframe(get_oir_logo(), height=130)
     render_page_navigation("📐 OIR Practice Exam", "oir")
 
 
@@ -1353,7 +1706,7 @@ elif test_mode == "📐 OIR Practice Exam":
         # Header columns
         col_t, col_s = st.columns([2, 1])
         with col_t:
-            st.markdown(f"⏱️ **Time Remaining:** `<span style='color:#ef4444; font-size:1.3rem; font-weight:bold;'>{mins:02d}:{secs:02d}</span>`", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:#ef4444; font-size:1.3rem; font-weight:bold;'>{mins:02d}:{secs:02d}</span>", unsafe_allow_html=True)
         with col_s:
             if st.button("Submit Booklet 1 ➔", type="primary", use_container_width=True):
                 st.session_state.oir_break_start_time = time.time()
@@ -1467,7 +1820,7 @@ elif test_mode == "📐 OIR Practice Exam":
         # Header columns
         col_t, col_s = st.columns([2, 1])
         with col_t:
-            st.markdown(f"⏱️ **Time Remaining:** `<span style='color:#ef4444; font-size:1.3rem; font-weight:bold;'>{mins:02d}:{secs:02d}</span>`", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:#ef4444; font-size:1.3rem; font-weight:bold;'>{mins:02d}:{secs:02d}</span>", unsafe_allow_html=True)
         with col_s:
             if st.button("Finish Exam & Submit ➔", type="primary", use_container_width=True):
                 st.session_state.oir_state = "scorecard"
@@ -1481,7 +1834,7 @@ elif test_mode == "📐 OIR Practice Exam":
         st.info(f"**Category:** {q['type']}")
         
         # Display SVG Figure
-        st.components.v1.html(q['svg'], height=220)
+        st.iframe(q['svg'], height=220)
         
         st.markdown(f"<div class='card'><p style='font-size: 1.1rem; color: #f8fafc;'>{q['question']}</p></div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -1636,7 +1989,7 @@ elif test_mode == "📐 OIR Practice Exam":
                 
                 status_symbol = "✅" if is_correct else "❌"
                 st.markdown(f"**Q{idx+1}. {q['question']}** ({q['type']})")
-                st.components.v1.html(q['svg'], height=200)
+                st.iframe(q['svg'], height=200)
                 st.write(f"- Your Answer: `{user_ans}` {status_symbol}")
                 st.write(f"- Correct Answer: `{q['answer']}`")
                 st.info(f"💡 **Explanation:** {q['explanation']}")
@@ -1650,7 +2003,7 @@ elif test_mode == "📐 OIR Practice Exam":
 # 3.95 GTO Lecturette
 # -----------------
 elif test_mode == "🗣️ GTO Lecturette":
-    st.components.v1.html(get_lecturette_logo(), height=130)
+    st.iframe(get_lecturette_logo(), height=130)
     render_page_navigation("🗣️ GTO Lecturette", "gto")
 
 
@@ -1810,6 +2163,7 @@ elif test_mode == "🗣️ GTO Lecturette":
             st.write("Stand up straight, keep your hands relaxed, maintain eye contact, and record your speech:")
             
             # Mic recorder
+            from streamlit_mic_recorder import mic_recorder  # pyrefly: ignore [missing-import]
             audio = mic_recorder(
                 start_prompt="Start Recording 🎙️",
                 stop_prompt="Stop Recording 🛑",
@@ -1959,7 +2313,7 @@ elif test_mode == "🗣️ GTO Lecturette":
 # 4. Performance Dashboard
 # -----------------
 elif test_mode == "📊 Performance Dashboard":
-    st.components.v1.html(get_dashboard_logo(), height=130)
+    st.iframe(get_dashboard_logo(), height=130)
     render_page_navigation("📊 Performance Dashboard", "dashboard")
 
     
@@ -2088,7 +2442,6 @@ else:
         <style>
             /* App Title Styling */
             .main-title {
-                font-family: 'Outfit', 'Inter', sans-serif !important;
                 font-size: 4rem !important;
                 font-weight: 900 !important;
                 background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #10b981 100%) !important;
@@ -2101,7 +2454,6 @@ else:
                 filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.3)) !important;
             }
             .subtitle {
-                font-family: 'Inter', sans-serif !important;
                 font-size: 1.25rem !important;
                 color: #10B981 !important;
                 text-align: center !important;
@@ -2115,7 +2467,6 @@ else:
             
             /* Section Heading */
             .section-title {
-                font-family: 'Outfit', sans-serif !important;
                 font-size: 1.8rem !important;
                 font-weight: 700 !important;
                 color: #f1f5f9 !important;
@@ -2140,66 +2491,6 @@ else:
                 box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
             }
 
-            /* Elegant card styling with crisp white background */
-            .ssb-card {
-                background-color: #FFFFFF !important;
-                border-radius: 15px !important;
-                padding: 20px !important;
-                text-align: center !important;
-                box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.05) !important;
-                margin-bottom: 10px !important;
-                border: 1px solid #E5E7EB !important;
-                transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                justify-content: center !important;
-                height: 150px !important;
-            }
-            
-            .ssb-card:hover {
-                transform: translateY(-3px) !important;
-                box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.1) !important;
-            }
-            
-            /* Title inside the card with bold dark grey text */
-            .card-title {
-                color: #4B5563 !important;
-                font-weight: 700 !important;
-                font-size: 16px !important;
-                margin-top: 15px !important;
-                font-family: 'Source Sans Pro', sans-serif !important;
-            }
-
-            /* Clean blue action buttons spanning full width below cards */
-            div.stButton > button {
-                width: 100% !important;
-                height: auto !important;
-                font-family: 'Inter', sans-serif !important;
-                font-size: 0.95rem !important;
-                font-weight: 600 !important;
-                color: #ffffff !important;
-                background-color: #2563eb !important;
-                border: none !important;
-                border-radius: 8px !important;
-                padding: 8px 16px !important;
-                transition: background-color 0.2s ease !important;
-                margin-bottom: 20px !important;
-            }
-            div.stButton > button:hover {
-                background-color: #1d4ed8 !important;
-                color: #ffffff !important;
-                transform: translateY(-1px) !important;
-                box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2) !important;
-            }
-            
-            /* Subtle line separator */
-            .separator {
-                border-bottom: 2px solid #334155;
-                margin-top: 3rem;
-                margin-bottom: 3rem;
-            }
-            
             /* Responsive styles for main menu components */
             @media (max-width: 768px) {
                 .main-title {
@@ -2213,28 +2504,6 @@ else:
                 }
                 .section-title {
                     font-size: 1.3rem !important;
-                }
-                /* Force columns to stay side-by-side (2 columns) on small screens */
-                div[data-testid="stHorizontalBlock"] {
-                    display: flex !important;
-                    flex-wrap: wrap !important;
-                }
-                div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-                    width: calc(50% - 10px) !important;
-                    flex: 1 1 calc(50% - 10px) !important;
-                    min-width: calc(50% - 10px) !important;
-                    margin-bottom: 15px !important;
-                }
-                .ssb-card {
-                    height: 130px !important;
-                    padding: 15px 10px !important;
-                }
-                .ssb-card div {
-                    font-size: 38px !important;
-                }
-                .card-title {
-                    font-size: 14px !important;
-                    margin-top: 10px !important;
                 }
             }
         </style>
@@ -2270,7 +2539,7 @@ else:
             st.markdown(
                 f"""
                 <div class="ssb-card">
-                    <div style="font-size: 45px;">{modules[i]['icon']}</div>
+                    <div class="card-icon">{modules[i]['icon']}</div>
                     <div class="card-title">{modules[i]['title']}</div>
                 </div>
                 """, 
@@ -2278,6 +2547,8 @@ else:
             )
             if st.button("Open ➔", key=f"btn_{i}", use_container_width=True):
                 st.session_state.current_mode = modules[i]['mode']
+                st.query_params["page"] = mode_to_param.get(modules[i]['mode'], "None")
+                st.session_state.last_seen_page = mode_to_param.get(modules[i]['mode'], "None")
                 st.rerun()
                 
         # Right Card (Check if index is valid)
@@ -2286,7 +2557,7 @@ else:
                 st.markdown(
                     f"""
                     <div class="ssb-card">
-                        <div style="font-size: 45px;">{modules[i+1]['icon']}</div>
+                        <div class="card-icon">{modules[i+1]['icon']}</div>
                         <div class="card-title">{modules[i+1]['title']}</div>
                     </div>
                     """, 
@@ -2294,10 +2565,12 @@ else:
                 )
                 if st.button("Open ➔", key=f"btn_{i+1}", use_container_width=True):
                     st.session_state.current_mode = modules[i+1]['mode']
+                    st.query_params["page"] = mode_to_param.get(modules[i+1]['mode'], "None")
+                    st.session_state.last_seen_page = mode_to_param.get(modules[i+1]['mode'], "None")
                     st.rerun()
 
     # Decorative separator line
-    st.markdown("<div class='separator'></div>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 0; border-top: 2px solid #334155; margin-top: 3rem; margin-bottom: 3rem;'>", unsafe_allow_html=True)
     
     # Settings and configuration moved elegantly to a lower full-width block or expander
     st.markdown("<p class='section-title'>⚙️ System Configuration</p>", unsafe_allow_html=True)
@@ -2313,6 +2586,8 @@ else:
         )
         if gemini_key != st.session_state.api_key:
             st.session_state.api_key = gemini_key
+            if st.session_state.get('logged_in') and st.session_state.get('user_id'):
+                update_user_api_key(st.session_state.user_id, gemini_key)
             st.rerun()
     with config_col2:
         # Dynamic active module presentation box
