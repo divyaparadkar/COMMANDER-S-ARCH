@@ -1022,6 +1022,10 @@ def render_navbar():
     mode = st.session_state.current_mode
     username = st.session_state.get('username', 'Candidate')
     
+    # Retrieve session token to append to navbar links
+    token = st.session_state.get('session_token', '')
+    token_str = f"&token={token}" if token else ""
+    
     # Active class mappings
     active_dash = "active" if mode == "None Selected" else ""
     active_piq = "active" if mode == "📋 PIQ Form Digitizer" else ""
@@ -1041,25 +1045,25 @@ def render_navbar():
         '<span></span><span></span><span></span>'
         '</label>'
         '<div class="nav-links">'
-        f'<a href="?page=None" target="_self" class="{active_dash}">📊 Dashboard</a>'
-        f'<a href="?page=PIQ_Digitizer" target="_self" class="{active_piq}">📋 PIQ Form</a>'
-        f'<a href="?page=OIR_Practice" target="_self" class="{active_oir}">📐 OIR Practice</a>'
+        f'<a href="?page=None{token_str}" target="_self" class="{active_dash}">📊 Dashboard</a>'
+        f'<a href="?page=PIQ_Digitizer{token_str}" target="_self" class="{active_piq}">📋 PIQ Form</a>'
+        f'<a href="?page=OIR_Practice{token_str}" target="_self" class="{active_oir}">📐 OIR Practice</a>'
         '<div class="nav-dropdown">'
         '<span class="dropdown-trigger">🧠 Practice Modules ▾</span>'
         '<div class="dropdown-content">'
-        '<a href="?page=PPDT_TAT_Mode" target="_self">🖼️ PPDT / TAT Mode</a>'
-        '<a href="?page=WAT_Module" target="_self">✍️ WAT Module</a>'
-        '<a href="?page=SRT_Module" target="_self">🧠 SRT Module</a>'
-        '<a href="?page=GTO_Lecturette" target="_self">🗣️ GTO Lecturette</a>'
-        '<a href="?page=Speech_Mock" target="_self">🎙️ Speech & Mock</a>'
-        '<a href="?page=Daily_Newspaper_Vocab" target="_self">📚 Daily Vocab</a>'
+        f'<a href="?page=PPDT_TAT_Mode{token_str}" target="_self">🖼️ PPDT / TAT Mode</a>'
+        f'<a href="?page=WAT_Module{token_str}" target="_self">✍️ WAT Module</a>'
+        f'<a href="?page=SRT_Module{token_str}" target="_self">🧠 SRT Module</a>'
+        f'<a href="?page=GTO_Lecturette{token_str}" target="_self">🗣️ GTO Lecturette</a>'
+        f'<a href="?page=Speech_Mock{token_str}" target="_self">🎙️ Speech & Mock</a>'
+        f'<a href="?page=Daily_Newspaper_Vocab{token_str}" target="_self">📚 Daily Vocab</a>'
         '</div>'
         '</div>'
-        f'<a href="?page=Performance_Dashboard" target="_self" class="{active_perf}">📊 Performance</a>'
-        f'<a href="?page=Get_Free_Guidance" target="_self" class="{active_guid}">🤝 Guidance</a>'
+        f'<a href="?page=Performance_Dashboard{token_str}" target="_self" class="{active_perf}">📊 Performance</a>'
+        f'<a href="?page=Get_Free_Guidance{token_str}" target="_self" class="{active_guid}">🤝 Guidance</a>'
         '<div class="nav-user-sec">'
         f'<span class="user-greeting">👤 {username}</span>'
-        '<a href="?logout=true" target="_self" class="logout-btn">🔓 Log Out</a>'
+        f'<a href="?logout=true{token_str}" target="_self" class="logout-btn">🔓 Log Out</a>'
         '</div>'
         '</div>'
         '</div>'
