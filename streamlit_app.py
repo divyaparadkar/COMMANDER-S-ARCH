@@ -1,6 +1,6 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
-import streamlit as st  # pyrefly: ignore [missing-import]
+import streamlit as st  # type: ignore
 import time
 import os
 import random
@@ -8,7 +8,7 @@ from image_bank import get_random_ppdt, get_ppdt_logo, get_wat_logo, get_srt_log
 from text_analyzer import local_analyze_text, gemini_analyze_text, generate_interview_questions, evaluate_interview_answer, analyze_piq_data, evaluate_lecturette_speech
 from data_bank import WAT_WORDS, SRT_SITUATIONS, OIR_VERBAL_QUESTIONS, OIR_NON_VERBAL_QUESTIONS, LECTURETTE_TOPICS
 import io
-from database import init_db, register_user, authenticate_user, update_user_api_key, update_user_piq, save_user_attempt, get_user_history, update_user_password
+from database import init_db, register_user, authenticate_user, update_user_api_key, update_user_piq, save_user_attempt, get_user_history, update_user_password, create_session, verify_session, delete_session, get_db_connection
 
 # Initialize database once
 @st.cache_resource
@@ -43,6 +43,8 @@ st.set_page_config(
 # Custom Styling
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+    
     @keyframes gradientBG {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
@@ -62,70 +64,104 @@ st.markdown("""
         visibility: hidden !important;
         display: none !important;
     }
+    [data-testid="stSidebar"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
     .block-container, [data-testid="stAppViewBlockContainer"] {
-        max-width: 95% !important;
-        padding-left: 2.5rem !important;
-        padding-right: 2.5rem !important;
-        padding-top: 0px !important;
-        margin-top: 0px !important;
-        padding-bottom: 1.5rem !important;
+        max-width: 1200px !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        padding-top: 100px !important; /* Push down to clear fixed navbar */
+        margin: 0 auto !important;
+        padding-bottom: 3rem !important;
+    }
+    @media (max-width: 768px) {
+        .block-container, [data-testid="stAppViewBlockContainer"] {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 90px !important;
+            padding-bottom: 2rem !important;
+        }
     }
     .main {
         background: transparent !important;
         color: #f8fafc;
     }
     
-    /* Robust system font stack for cross-platform visual consistency */
-    html, body, [data-testid="stAppViewContainer"], .stApp, p, span, div, h1, h2, h3, h4, h5, h6, input, textarea, select, button, label, .card-title, .ssb-card {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    /* Font hierarchy */
+    html, body, [data-testid="stAppViewContainer"], .stApp, p, span, div, input, textarea, select, button, label {
+        font-family: 'Inter', sans-serif !important;
     }
-
+    h1, h2, h3, h4, h5, h6, .nav-logo {
+        font-family: 'Outfit', sans-serif !important;
+        color: #ffffff !important;
+    }
+    
     /* Ensure high contrast readable text inside all views and modules */
     .stMarkdown, p, span, label, .stText, div[data-testid="stMarkdownContainer"] {
-        color: #f1f5f9 !important;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
+        color: #cbd5e1 !important;
     }
     label[data-testid="stWidgetLabel"] p {
         color: #ffffff !important;
         font-weight: 600 !important;
     }
+    
+    /* Premium Dropdown and Input styling */
     div[data-baseweb="select"] > div {
-        background-color: #1e293b !important;
+        background-color: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 8px !important;
         color: #ffffff !important;
     }
     input, textarea {
         color: #ffffff !important;
-        background-color: #1e293b !important;
+        background-color: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    input:focus, textarea:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
     }
     
     /* Standard/Global button styling */
     .stButton>button {
-        background-color: #2563eb;
-        color: white;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        border: 1px solid #334155;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 0.6rem 1.8rem !important;
+        font-weight: 700 !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
     }
     .stButton>button:hover {
-        background-color: #1d4ed8;
-        transform: translateY(-2px);
+        background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4) !important;
     }
+    .stButton>button:active {
+        transform: translateY(0) !important;
+    }
+    
+    /* Card design system */
     .card {
-        background-color: #1e293b;
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        border: 1px solid #334155;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        background: rgba(30, 41, 59, 0.45) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
     }
     .olq-tag {
         display: inline-block;
-        background-color: #1e3a8a;
-        color: #93c5fd;
+        background-color: rgba(37, 99, 235, 0.15) !important;
+        color: #60a5fa !important;
+        border: 1px solid rgba(37, 99, 235, 0.3) !important;
         border-radius: 16px;
         padding: 0.25rem 0.75rem;
         font-size: 0.85rem;
@@ -133,124 +169,310 @@ st.markdown("""
         font-weight: bold;
     }
     .feedback-item {
-        background-color: #311c1c;
-        border-left: 4px solid #ef4444;
+        background-color: rgba(239, 68, 68, 0.1) !important;
+        border-left: 4px solid #ef4444 !important;
         padding: 0.75rem;
-        border-radius: 4px;
+        border-radius: 8px;
         margin-bottom: 0.5rem;
+        color: #fca5a5 !important;
     }
     .success-item {
-        background-color: #143021;
-        border-left: 4px solid #22c55e;
+        background-color: rgba(34, 197, 94, 0.1) !important;
+        border-left: 4px solid #22c55e !important;
         padding: 0.75rem;
-        border-radius: 4px;
+        border-radius: 8px;
         margin-bottom: 0.5rem;
-    }
-
-    /* All-in-one clickable card design */
-    .ssb-card {
-        background-color: #1e293b !important;
-        border-radius: 12px 12px 0px 0px !important;
-        padding: 16px !important;
-        text-align: center !important;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.15) !important;
-        border: 1px solid #334155 !important;
-        border-bottom: none !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-        height: 140px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-        word-wrap: break-word !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-    }
-    .card-icon {
-        font-size: clamp(32px, 8vw, 42px) !important;
-        margin-top: 5px !important;
-        margin-bottom: 8px !important;
-        line-height: 1.1 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    .card-title {
-        color: #f1f5f9 !important;
-        font-weight: 700 !important;
-        font-size: clamp(11px, 3.2vw, 15px) !important;
-        margin-top: 4px !important;
-        margin-bottom: 4px !important;
-        line-height: 1.3 !important;
-        word-wrap: break-word !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        display: -webkit-box !important;
-        -webkit-line-clamp: 2 !important;
-        -webkit-box-orient: vertical !important;
-    }
-
-    /* Cohesive Dashboard component buttons */
-    div[data-testid="column"]:has(.ssb-card) div.stButton > button {
-        width: 100% !important;
-        height: auto !important;
-        font-size: 14px !important;
-        border: 1px solid #334155 !important;
-        border-top: none !important;
-        border-radius: 0px 0px 12px 12px !important;
-        padding: 8px 16px !important;
-        margin-top: -1rem !important; /* Pull up to attach seamlessly under the card */
-        margin-bottom: 16px !important;
-        transform: none !important; /* Prevent hover translation to maintain cohesion */
-        box-shadow: none !important;
-        background-color: #2563eb !important;
-        color: white !important;
-        font-weight: bold !important;
-    }
-    div[data-testid="column"]:has(.ssb-card) div.stButton > button:hover {
-        background-color: #1d4ed8 !important;
-        transform: none !important;
-    }
-    div[data-testid="column"]:has(.ssb-card) div.stButton > button:active {
-        transform: scale(0.98) !important;
+        color: #86efac !important;
     }
     
-    /* Responsive overrides for smaller viewports (Mobile & Tablet) */
-    @media (max-width: 768px) {
-        .block-container {
-            max-width: 100% !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            padding-top: 1rem !important;
-            padding-bottom: 1rem !important;
+    /* Custom Responsive Navbar */
+    .custom-navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70px;
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(16px) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        z-index: 999999 !important;
+        box-sizing: border-box;
+    }
+    .nav-container {
+        max-width: 1200px;
+        height: 100%;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 2rem;
+        position: relative;
+    }
+    .nav-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 1.4rem;
+        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #10b981 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+    }
+    .logo-crest {
+        -webkit-text-fill-color: initial;
+    }
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .nav-links a {
+        color: #94a3b8 !important;
+        text-decoration: none !important;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .nav-links a:hover, .nav-links a.active {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+    
+    .nav-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .dropdown-trigger {
+        color: #94a3b8;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    .dropdown-trigger:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        background-color: #1e293b;
+        min-width: 200px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        z-index: 10000;
+        padding: 0.5rem 0;
+    }
+    .dropdown-content a {
+        color: #94a3b8 !important;
+        padding: 0.5rem 1rem !important;
+        display: block !important;
+        font-size: 0.9rem !important;
+        text-align: left !important;
+        border-radius: 0 !important;
+    }
+    .dropdown-content a:hover {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: #ffffff !important;
+    }
+    .nav-dropdown:hover .dropdown-content {
+        display: block;
+    }
+    
+    .nav-user-sec {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        padding-left: 1rem;
+    }
+    .user-greeting {
+        color: #10b981;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .logout-btn {
+        background: #ef4444;
+        color: white !important;
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+        padding: 0.4rem 0.8rem !important;
+        border-radius: 6px;
+    }
+    .logout-btn:hover {
+        background: #dc2626 !important;
+    }
+    .nav-toggle-check, .nav-toggle-label {
+        display: none;
+    }
+    
+    /* Dashboard Grid Layout */
+    .ssb-dashboard-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+        margin-top: 1.5rem !important;
+    }
+    .ssb-grid-item {
+        background: rgba(30, 41, 59, 0.45) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 1.5rem !important;
+        text-decoration: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+        cursor: pointer !important;
+        height: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .ssb-grid-item:hover {
+        transform: translateY(-5px) !important;
+        border-color: rgba(59, 130, 246, 0.4) !important;
+        background: rgba(30, 41, 59, 0.6) !important;
+        box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+    }
+    .ssb-grid-icon {
+        font-size: 2.2rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    .ssb-grid-title {
+        color: #ffffff !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 1.25rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    .ssb-grid-desc {
+        color: #94a3b8 !important;
+        font-size: 0.88rem !important;
+        line-height: 1.5 !important;
+    }
+    
+    /* Keep page navigation columns inline on mobile */
+    div.inline-nav-marker + div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        margin-bottom: 1.5rem !important;
+    }
+    div.inline-nav-marker + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        width: auto !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Mobile responsive navbar and structures */
+    @media (max-width: 1024px) {
+        .nav-container {
+            padding: 0 1rem;
         }
-        .card {
-            padding: 1rem !important;
+        .nav-toggle-label {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 24px;
+            height: 18px;
+            cursor: pointer;
+            z-index: 1000000;
         }
-        .olq-tag {
-            font-size: 0.75rem !important;
-            padding: 0.2rem 0.5rem !important;
+        .nav-toggle-label span {
+            display: block;
+            height: 2px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 2px;
+            transition: all 0.3s ease;
         }
-        iframe {
-            max-width: 100% !important;
+        .nav-links {
+            position: fixed;
+            top: 70px;
+            left: -100%;
+            width: 100%;
+            height: calc(100vh - 70px);
+            background: #0f172a !important;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 2rem;
+            gap: 1rem;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
-        /* Enforce a tight 2-column grid on mobile/tablet */
-        div[data-testid="stHorizontalBlock"]:has(.ssb-card) {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            flex-direction: row !important;
-            gap: 10px !important;
+        .nav-dropdown {
+            display: flex;
+            flex-direction: column;
         }
-        div[data-testid="stHorizontalBlock"]:has(.ssb-card) > div[data-testid="column"],
-        div[data-testid="stHorizontalBlock"]:has(.ssb-card) > div[data-testid="stColumn"] {
-            width: calc(50% - 5px) !important;
-            flex: 1 1 calc(50% - 5px) !important;
-            min-width: calc(50% - 5px) !important;
-            margin-bottom: 10px !important;
-            padding-left: 0px !important;
-            padding-right: 0px !important;
+        .dropdown-content {
+            position: static;
+            display: block;
+            background: transparent;
+            box-shadow: none;
+            border: none;
+            padding-left: 1.5rem;
         }
+        .nav-user-sec {
+            flex-direction: column;
+            align-items: stretch;
+            border-left: none;
+            padding-left: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 1.5rem;
+            margin-top: 1rem;
+        }
+        .nav-toggle-check:checked ~ .nav-links {
+            left: 0;
+        }
+        .nav-toggle-check:checked ~ .nav-toggle-label span:nth-child(1) {
+            transform: translateY(8px) rotate(45deg);
+        }
+        .nav-toggle-check:checked ~ .nav-toggle-label span:nth-child(2) {
+            opacity: 0;
+        }
+        .nav-toggle-check:checked ~ .nav-toggle-label span:nth-child(3) {
+            transform: translateY(-8px) rotate(-45deg);
+        }
+    }
+    
+    /* Keep OIR question grid navigator inline/wrapped on mobile */
+    div.oir-grid-marker + div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+    div.oir-grid-marker + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 1 1 calc(10% - 6px) !important;
+        min-width: 40px !important;
+        max-width: 60px !important;
+        margin-bottom: 6px !important;
+        padding: 0 !important;
+    }
+    div.oir-grid-marker + div[data-testid="stHorizontalBlock"] button {
+        padding: 4px 4px !important;
+        font-size: 0.85rem !important;
+        min-height: 35px !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -273,6 +495,7 @@ def render_page_navigation(current_mode_name, key_prefix):
     except ValueError:
         idx = -1
         
+    st.markdown('<div class="inline-nav-marker"></div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1.5, 1, 1.5])
     
     with col1:
@@ -314,6 +537,21 @@ def render_page_navigation(current_mode_name, key_prefix):
                 st.session_state.last_seen_page = "None"
                 st.rerun()
     st.markdown("---")
+
+# Check for logout query parameter
+if st.query_params.get("logout") == "true" or st.query_params.get("page") == "Logout":
+    token = st.query_params.get("token") or st.session_state.get("session_token")
+    if token:
+        delete_session(token)
+    st.session_state.clear()
+    st.query_params.clear()
+    st.markdown("""
+        <script>
+            localStorage.removeItem("ssb_token");
+            window.location.search = "";
+        </script>
+    """, unsafe_allow_html=True)
+    st.stop()
 
 # Initialize Session State
 if 'logged_in' not in st.session_state:
@@ -447,6 +685,74 @@ if 'lecturette_evaluation' not in st.session_state:
 # Splash Screen
 if 'splash_shown' not in st.session_state:
     st.session_state.splash_shown = False
+
+# Cookie / LocalStorage-based Auto-Login
+if not st.session_state.get('logged_in'):
+    url_token = st.query_params.get("token")
+    if url_token:
+        uid = verify_session(url_token)
+        if uid:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT username, api_key, piq_json FROM users WHERE id = ?", (uid,))
+            user_row = cursor.fetchone()
+            conn.close()
+            if user_row:
+                st.session_state.logged_in = True
+                st.session_state.user_id = uid
+                st.session_state.username = user_row['username']
+                st.session_state.api_key = user_row['api_key']
+                st.session_state.splash_shown = True  # Skip splash screen on auto-login
+                if user_row['piq_json']:
+                    import datetime
+                    import json
+                    try:
+                        p_data = json.loads(user_row['piq_json'])
+                        if 'dob' in p_data and p_data['dob']:
+                            try:
+                                if isinstance(p_data['dob'], str):
+                                    p_data['dob'] = datetime.datetime.strptime(p_data['dob'], "%Y-%m-%d").date()
+                            except Exception:
+                                pass
+                        st.session_state.piq_data = p_data
+                    except Exception:
+                        pass
+                st.session_state.history = get_user_history(uid)
+                st.session_state.session_token = url_token
+                st.query_params.pop("token", None)
+                st.rerun()
+            else:
+                st.query_params.pop("token", None)
+                st.markdown("""
+                    <script>
+                        localStorage.removeItem("ssb_token");
+                        window.location.search = "";
+                    </script>
+                """, unsafe_allow_html=True)
+                st.stop()
+        else:
+            st.query_params.pop("token", None)
+            st.markdown("""
+                <script>
+                    localStorage.removeItem("ssb_token");
+                    window.location.search = "";
+                </script>
+            """, unsafe_allow_html=True)
+            st.stop()
+    else:
+        # Check browser local storage for existing session token
+        st.markdown("""
+            <script>
+                const token = localStorage.getItem("ssb_token");
+                if (token) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get("token") !== token) {
+                        urlParams.set("token", token);
+                        window.location.search = "?" + urlParams.toString();
+                    }
+                }
+            </script>
+        """, unsafe_allow_html=True)
 
 if not st.session_state.splash_shown:
     st.markdown(
@@ -663,8 +969,18 @@ def render_login_page():
                             history = get_user_history(user['id'])
                             st.session_state.history = history if history else []
                             
+                            # Create session token
+                            token = create_session(user['id'])
+                            st.session_state.session_token = token
+                            
                             st.session_state.auth_success = f"Welcome back, {username}!"
-                            st.rerun()
+                            st.markdown(f"""
+                                <script>
+                                    localStorage.setItem("ssb_token", "{token}");
+                                    window.location.search = "?page=None";
+                                </script>
+                            """, unsafe_allow_html=True)
+                            st.stop()
                         else:
                             st.session_state.auth_error = "Invalid username or password."
                             st.rerun()
@@ -699,6 +1015,56 @@ if st.session_state.splash_shown and not st.session_state.logged_in:
     render_login_page()
     st.stop()
 
+# Define Top Navbar rendering
+def render_navbar():
+    mode = st.session_state.current_mode
+    username = st.session_state.get('username', 'Candidate')
+    
+    # Active class mappings
+    active_dash = "active" if mode == "None Selected" else ""
+    active_piq = "active" if mode == "📋 PIQ Form Digitizer" else ""
+    active_oir = "active" if mode == "📐 OIR Practice Exam" else ""
+    active_perf = "active" if mode == "📊 Performance Dashboard" else ""
+    active_guid = "active" if mode == "🤝 Get Free Guidance" else ""
+    
+    navbar_html = (
+        '<nav class="custom-navbar">'
+        '<div class="nav-container">'
+        '<div class="nav-logo">'
+        '<span class="logo-crest">🎖️</span>'
+        '<span class="logo-text">COMMANDER\'S ARCH</span>'
+        '</div>'
+        '<input type="checkbox" id="nav-toggle" class="nav-toggle-check">'
+        '<label for="nav-toggle" class="nav-toggle-label">'
+        '<span></span><span></span><span></span>'
+        '</label>'
+        '<div class="nav-links">'
+        f'<a href="?page=None" target="_self" class="{active_dash}">📊 Dashboard</a>'
+        f'<a href="?page=PIQ_Digitizer" target="_self" class="{active_piq}">📋 PIQ Form</a>'
+        f'<a href="?page=OIR_Practice" target="_self" class="{active_oir}">📐 OIR Practice</a>'
+        '<div class="nav-dropdown">'
+        '<span class="dropdown-trigger">🧠 Practice Modules ▾</span>'
+        '<div class="dropdown-content">'
+        '<a href="?page=PPDT_TAT_Mode" target="_self">🖼️ PPDT / TAT Mode</a>'
+        '<a href="?page=WAT_Module" target="_self">✍️ WAT Module</a>'
+        '<a href="?page=SRT_Module" target="_self">🧠 SRT Module</a>'
+        '<a href="?page=GTO_Lecturette" target="_self">🗣️ GTO Lecturette</a>'
+        '<a href="?page=Speech_Mock" target="_self">🎙️ Speech & Mock</a>'
+        '<a href="?page=Daily_Newspaper_Vocab" target="_self">📚 Daily Vocab</a>'
+        '</div>'
+        '</div>'
+        f'<a href="?page=Performance_Dashboard" target="_self" class="{active_perf}">📊 Performance</a>'
+        f'<a href="?page=Get_Free_Guidance" target="_self" class="{active_guid}">🤝 Guidance</a>'
+        '<div class="nav-user-sec">'
+        f'<span class="user-greeting">👤 {username}</span>'
+        '<a href="?logout=true" target="_self" class="logout-btn">🔓 Log Out</a>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '</nav>'
+    )
+    st.markdown(navbar_html, unsafe_allow_html=True)
+
 if 'last_seen_page' not in st.session_state:
     st.session_state.last_seen_page = None
 
@@ -721,101 +1087,10 @@ if st.query_params.get("page") != current_param:
     st.query_params["page"] = current_param
     st.session_state.last_seen_page = current_param
 
-st.sidebar.markdown("<h1 style='text-align: center; color: #3b82f6; margin-bottom: 0px;'>🎖️ COMMANDER'S ARCH</h1>", unsafe_allow_html=True)
-st.sidebar.markdown("<p style='text-align: center; color: #10b981; font-weight: bold; font-size: 0.85rem; letter-spacing: 2px; margin-top: 0px;'>FOR SSB PREPARATION</p>", unsafe_allow_html=True)
-st.sidebar.markdown("---")
-
-test_mode_options = [
-    "None Selected", 
-    "📋 PIQ Form Digitizer", 
-    "📐 OIR Practice Exam", 
-    "🖼️ PPDT / TAT Mode", 
-    "✍️ WAT (Word Association)", 
-    "🧠 SRT (Situation Reaction)", 
-    "🗣️ GTO Lecturette", 
-    "🎙️ Speech & Mock Interview", 
-    "📊 Performance Dashboard",
-    "🤝 Get Free Guidance",
-    "📚 Daily Newspaper Vocab"
-]
-selected_index = test_mode_options.index(st.session_state.current_mode) if st.session_state.current_mode in test_mode_options else 0
-
-sidebar_mode = st.sidebar.selectbox(
-    "Quick Navigation",
-    test_mode_options,
-    index=selected_index
-)
-if sidebar_mode != st.session_state.current_mode:
-    st.session_state.current_mode = sidebar_mode
-    st.query_params["page"] = mode_to_param.get(sidebar_mode, "None")
-    st.session_state.last_seen_page = mode_to_param.get(sidebar_mode, "None")
-    st.rerun()
+# Render the custom navbar
+render_navbar()
 
 test_mode = st.session_state.current_mode
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Settings & API Config")
-api_key_input = st.sidebar.text_input(
-    "Google Gemini API Key",
-    type="password",
-    value=st.session_state.api_key,
-    placeholder="Enter API Key for deep psychological analysis...",
-    help="Using a Gemini API Key enables detailed AI evaluation of Officer Like Qualities (OLQs) and constructive personality feedback. Without it, the app uses local NLTK processing."
-)
-if api_key_input != st.session_state.api_key:
-    st.session_state.api_key = api_key_input
-    if st.session_state.get('logged_in') and st.session_state.get('user_id'):
-        update_user_api_key(st.session_state.user_id, api_key_input)
-    st.rerun()
-
-if st.session_state.api_key:
-    st.sidebar.markdown(
-        """
-        <div style='background-color: #143021; border-left: 4px solid #22c55e; padding: 10px; border-radius: 6px; margin-top: 10px;'>
-            <span style='color: #22c55e; font-weight: bold;'>🟢 Psychologist Agent: ACTIVE</span><br>
-            <span style='color: #a7f3d0; font-size: 0.8rem;'>Deep OLQ analysis and cognitive profiling enabled.</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    st.sidebar.markdown(
-        """
-        <div style='background-color: #311c1c; border-left: 4px solid #ef4444; padding: 10px; border-radius: 6px; margin-top: 10px;'>
-            <span style='color: #ef4444; font-weight: bold;'>⚪ Psychologist Agent: STANDBY</span><br>
-            <span style='color: #fca5a5; font-size: 0.8rem;'>Using local heuristics. Enter Gemini API Key to activate.</span>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("User Account")
-st.sidebar.write(f"Logged in as: **{st.session_state.username}**")
-with st.sidebar.expander("🔑 Change Password"):
-    with st.form("change_password_form", clear_on_submit=True):
-        new_pw = st.text_input("New Password", type="password", placeholder="Enter new password")
-        confirm_pw = st.text_input("Confirm Password", type="password", placeholder="Confirm new password")
-        change_pw_btn = st.form_submit_button("Update Password", use_container_width=True)
-        if change_pw_btn:
-            if not new_pw:
-                st.error("Password cannot be empty.")
-            elif new_pw != confirm_pw:
-                st.error("Passwords do not match.")
-            else:
-                success, msg = update_user_password(st.session_state.user_id, new_pw)
-                if success:
-                    st.success("✅ Password updated!")
-                else:
-                    st.error(msg)
-if st.sidebar.button("🔓 Log Out", use_container_width=True):
-    st.session_state.logged_in = False
-    st.session_state.user_id = None
-    st.session_state.username = ""
-    st.session_state.api_key = ""
-    st.session_state.history = []
-    st.query_params.clear()
-    st.rerun()
 
 def save_analysis(test_type, text, analysis, context=""):
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1171,7 +1446,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
                 if not st.session_state.get('interview_tts_played') or st.session_state.get('interview_tts_q_idx') != idx:
                     with st.spinner("Generating speech..."):
                         try:
-                            from gtts import gTTS  # pyrefly: ignore [missing-import]
+                            from gtts import gTTS  # type: ignore
                             tts = gTTS(text=current_q, lang='en')
                             fp = io.BytesIO()
                             tts.write_to_fp(fp)
@@ -1192,7 +1467,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
             st.write("Click the button below and speak clearly into your microphone. Click stop when finished.")
             
             # Use streamlit-mic-recorder to record WAV bytes from browser
-            from streamlit_mic_recorder import mic_recorder  # pyrefly: ignore [missing-import]
+            from streamlit_mic_recorder import mic_recorder  # type: ignore
             audio_data = mic_recorder(
                 start_prompt="🎙️ Start Recording",
                 stop_prompt="🛑 Stop Recording",
@@ -1207,7 +1482,7 @@ elif test_mode == "🎙️ Speech & Mock Interview":
                     st.session_state[f"last_recorded_id_{idx}"] = audio_data.get("id")
                     with st.spinner("Transcribing your speech to text..."):
                         try:
-                            import speech_recognition as sr  # pyrefly: ignore [missing-import]
+                            import speech_recognition as sr  # type: ignore
                             r = sr.Recognizer()
                             audio_file = io.BytesIO(audio_data["bytes"])
                             with sr.AudioFile(audio_file) as source:
@@ -1757,6 +2032,7 @@ elif test_mode == "📐 OIR Practice Exam":
 
         # Question Navigator Grid
         st.markdown("#### Question Grid Navigator")
+        st.markdown('<div class="oir-grid-marker"></div>', unsafe_allow_html=True)
         grid_cols = st.columns(min(10, len(st.session_state.oir_verbal_questions)))
         for grid_idx, grid_col in enumerate(grid_cols):
             grid_q = st.session_state.oir_verbal_questions[grid_idx]
@@ -1872,6 +2148,7 @@ elif test_mode == "📐 OIR Practice Exam":
 
         # Question Navigator Grid
         st.markdown("#### Question Grid Navigator")
+        st.markdown('<div class="oir-grid-marker"></div>', unsafe_allow_html=True)
         grid_cols = st.columns(min(10, len(st.session_state.oir_non_verbal_questions)))
         for grid_idx, grid_col in enumerate(grid_cols):
             grid_q = st.session_state.oir_non_verbal_questions[grid_idx]
@@ -2163,7 +2440,7 @@ elif test_mode == "🗣️ GTO Lecturette":
             st.write("Stand up straight, keep your hands relaxed, maintain eye contact, and record your speech:")
             
             # Mic recorder
-            from streamlit_mic_recorder import mic_recorder  # pyrefly: ignore [missing-import]
+            from streamlit_mic_recorder import mic_recorder  # type: ignore
             audio = mic_recorder(
                 start_prompt="Start Recording 🎙️",
                 stop_prompt="Stop Recording 🛑",
@@ -2436,144 +2713,81 @@ elif test_mode == "📚 Daily Newspaper Vocab":
         """, unsafe_allow_html=True)
 
 else:
-    # Inject Custom CSS specifically for the Big Grid Buttons on Dashboard Menu
-    st.markdown(
-        """
-        <style>
-            /* App Title Styling */
-            .main-title {
-                font-size: 4rem !important;
-                font-weight: 900 !important;
-                background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #10b981 100%) !important;
-                -webkit-background-clip: text !important;
-                -webkit-text-fill-color: transparent !important;
-                text-align: center !important;
-                margin-bottom: 5px !important;
-                letter-spacing: -1px !important;
-                text-transform: uppercase !important;
-                filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.3)) !important;
-            }
-            .subtitle {
-                font-size: 1.25rem !important;
-                color: #10B981 !important;
-                text-align: center !important;
-                font-weight: 700 !important;
-                margin-top: 0px !important;
-                margin-bottom: 3.5rem !important;
-                letter-spacing: 4px !important;
-                text-transform: uppercase !important;
-                opacity: 0.9 !important;
-            }
-            
-            /* Section Heading */
-            .section-title {
-                font-size: 1.8rem !important;
-                font-weight: 700 !important;
-                color: #f1f5f9 !important;
-                margin-top: 2rem !important;
-                margin-bottom: 1.5rem !important;
-                border-left: 5px solid #3b82f6 !important;
-                padding-left: 15px !important;
-                letter-spacing: 0.5px !important;
-            }
-            
-            /* Custom Styling for App Header */
-            .app-header {
-                font-size: 24px !important;
-                font-weight: bold !important;
-                color: #FFFFFF !important;
-                background-color: #111827 !important;
-                padding: 15px !important;
-                text-align: center !important;
-                border-radius: 8px !important;
-                margin-bottom: 25px !important;
-                border: 1px solid #1e293b !important;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1) !important;
-            }
-
-            /* Responsive styles for main menu components */
-            @media (max-width: 768px) {
-                .main-title {
-                    font-size: 2.0rem !important;
-                    margin-bottom: 2px !important;
-                }
-                .subtitle {
-                    font-size: 0.85rem !important;
-                    margin-bottom: 1.5rem !important;
-                    letter-spacing: 2px !important;
-                }
-                .section-title {
-                    font-size: 1.3rem !important;
-                }
-            }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # App Header Bar matching the requested mobile layout
-    st.markdown('<div class="app-header">🎖️ COMMANDER\'S ARCH</div>', unsafe_allow_html=True)
-    
-    # Dynamic list of 10 modules
-    modules = [
-        {"title": "PIQ Digitizer", "icon": "📋", "mode": "📋 PIQ Form Digitizer"},
-        {"title": "OIR Practice", "icon": "📐", "mode": "📐 OIR Practice Exam"},
-        {"title": "PPDT / TAT Mode", "icon": "🖼️", "mode": "🖼️ PPDT / TAT Mode"},
-        {"title": "WAT Module", "icon": "✍️", "mode": "✍️ WAT (Word Association)"},
-        {"title": "SRT Module", "icon": "🧠", "mode": "🧠 SRT (Situation Reaction)"},
-        {"title": "GTO Lecturette", "icon": "🗣️", "mode": "🗣️ GTO Lecturette"},
-        {"title": "Speech & Mock", "icon": "🎙️", "mode": "🎙️ Speech & Mock Interview"},
-        {"title": "Performance Dashboard", "icon": "📊", "mode": "📊 Performance Dashboard"},
-        {"title": "Get Free Guidance", "icon": "🤝", "mode": "🤝 Get Free Guidance"},
-        {"title": "Daily Newspaper Vocab", "icon": "📚", "mode": "📚 Daily Newspaper Vocab"}
-    ]
+    # Dashboard Header Banner
+    st.markdown("""
+    <div class="card" style="text-align: center; padding: 2.5rem 1.5rem; background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%) !important;">
+        <h1 style="margin: 0; font-size: clamp(1.8rem, 5vw, 2.8rem); font-weight: 800; background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🎖️ Welcome to Commander's Arch</h1>
+        <p style="margin-top: 12px; font-size: clamp(0.9rem, 3vw, 1.1rem); color: #94a3b8; max-width: 600px; margin-left: auto; margin-right: auto;">
+            Empowering defense aspirants with high-fidelity simulations, psychological assessments, and Officer Like Qualities (OLQ) evaluations.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("<p class='section-title'>⚡ Choose Your Training Module</p>", unsafe_allow_html=True)
     
-    # Loop to create 2 columns dynamically
-    for i in range(0, len(modules), 2):
-        col1, col2 = st.columns(2)
-        
-        # Left Card
-        with col1:
-            st.markdown(
-                f"""
-                <div class="ssb-card">
-                    <div class="card-icon">{modules[i]['icon']}</div>
-                    <div class="card-title">{modules[i]['title']}</div>
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
-            if st.button("Open ➔", key=f"btn_{i}", use_container_width=True):
-                st.session_state.current_mode = modules[i]['mode']
-                st.query_params["page"] = mode_to_param.get(modules[i]['mode'], "None")
-                st.session_state.last_seen_page = mode_to_param.get(modules[i]['mode'], "None")
-                st.rerun()
-                
-        # Right Card (Check if index is valid)
-        with col2:
-            if i + 1 < len(modules):
-                st.markdown(
-                    f"""
-                    <div class="ssb-card">
-                        <div class="card-icon">{modules[i+1]['icon']}</div>
-                        <div class="card-title">{modules[i+1]['title']}</div>
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-                if st.button("Open ➔", key=f"btn_{i+1}", use_container_width=True):
-                    st.session_state.current_mode = modules[i+1]['mode']
-                    st.query_params["page"] = mode_to_param.get(modules[i+1]['mode'], "None")
-                    st.session_state.last_seen_page = mode_to_param.get(modules[i+1]['mode'], "None")
-                    st.rerun()
-
-    # Decorative separator line
-    st.markdown("<hr style='border: 0; border-top: 2px solid #334155; margin-top: 3rem; margin-bottom: 3rem;'>", unsafe_allow_html=True)
+    # Render the new responsive CSS Grid Dashboard
+    token = st.session_state.get('session_token', '')
+    token_str = f"&token={token}" if token else ""
     
-    # Settings and configuration moved elegantly to a lower full-width block or expander
-    st.markdown("<p class='section-title'>⚙️ System Configuration</p>", unsafe_allow_html=True)
+    grid_html = (
+        '<div class="ssb-dashboard-grid">'
+        f'<a href="?page=PIQ_Digitizer{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">📋</div>'
+        '<div class="ssb-grid-title">PIQ Digitizer</div>'
+        '<div class="ssb-grid-desc">Digitize your PIQ profile and receive structured psychological evaluation.</div>'
+        '</a>'
+        f'<a href="?page=OIR_Practice{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">📐</div>'
+        '<div class="ssb-grid-title">OIR Practice</div>'
+        '<div class="ssb-grid-desc">Practice Verbal and Non-Verbal OIR tests with dynamic timers.</div>'
+        '</a>'
+        f'<a href="?page=PPDT_TAT_Mode{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">🖼️</div>'
+        '<div class="ssb-grid-title">PPDT / TAT Mode</div>'
+        '<div class="ssb-grid-desc">Write stories based on visual prompts under timed conditions.</div>'
+        '</a>'
+        f'<a href="?page=WAT_Module{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">✍️</div>'
+        '<div class="ssb-grid-title">WAT Module</div>'
+        '<div class="ssb-grid-desc">Rapid Word Association Test with automated personality profiling.</div>'
+        '</a>'
+        f'<a href="?page=SRT_Module{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">🧠</div>'
+        '<div class="ssb-grid-title">SRT Module</div>'
+        '<div class="ssb-grid-desc">React to situations and view metrics across 15 Officer Like Qualities.</div>'
+        '</a>'
+        f'<a href="?page=GTO_Lecturette{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">🗣️</div>'
+        '<div class="ssb-grid-title">GTO Lecturette</div>'
+        '<div class="ssb-grid-desc">Prepare and present on general and defense topics with speech metrics.</div>'
+        '</a>'
+        f'<a href="?page=Speech_Mock{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">🎙️</div>'
+        '<div class="ssb-grid-title">Speech & Mock</div>'
+        '<div class="ssb-grid-desc">Simulate mock personal interviews based on your custom profile.</div>'
+        '</a>'
+        f'<a href="?page=Performance_Dashboard{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">📊</div>'
+        '<div class="ssb-grid-title">Performance Dashboard</div>'
+        '<div class="ssb-grid-desc">Analyze your historical attempts, OLQ scores, and cognitive progress.</div>'
+        '</a>'
+        f'<a href="?page=Get_Free_Guidance{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">🤝</div>'
+        '<div class="ssb-grid-title">Get Free Guidance</div>'
+        '<div class="ssb-grid-desc">Read expert advice, strategy maps, and core tips for SSB success.</div>'
+        '</a>'
+        f'<a href="?page=Daily_Newspaper_Vocab{token_str}" target="_self" class="ssb-grid-item">'
+        '<div class="ssb-grid-icon">📚</div>'
+        '<div class="ssb-grid-title">Daily Vocab</div>'
+        '<div class="ssb-grid-desc">Enhance vocabulary and sentence building for WAT and speaking tests.</div>'
+        '</a>'
+        '</div>'
+    )
+    st.markdown(grid_html, unsafe_allow_html=True)
+    
+    st.markdown("<hr style='border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 3rem; margin-bottom: 3rem;'>", unsafe_allow_html=True)
+    
+    st.markdown("<p class='section-title'>⚙️ System & Profile Configuration</p>", unsafe_allow_html=True)
     
     config_col1, config_col2 = st.columns([2, 1])
     with config_col1:
@@ -2589,11 +2803,39 @@ else:
             if st.session_state.get('logged_in') and st.session_state.get('user_id'):
                 update_user_api_key(st.session_state.user_id, gemini_key)
             st.rerun()
+            
+        with st.expander("🔑 Change Account Password"):
+            new_pw = st.text_input("New Password", type="password", placeholder="Enter new password", key="dash_new_pw")
+            confirm_pw = st.text_input("Confirm Password", type="password", placeholder="Confirm new password", key="dash_confirm_pw")
+            if st.button("Update Password", use_container_width=True, key="dash_change_pw_btn"):
+                if not new_pw:
+                    st.error("Password cannot be empty.")
+                elif new_pw != confirm_pw:
+                    st.error("Passwords do not match.")
+                else:
+                    success, msg = update_user_password(st.session_state.user_id, new_pw)
+                    if success:
+                        st.success("✅ Password updated successfully!")
+                    else:
+                        st.error(msg)
+                        
     with config_col2:
-        # Dynamic active module presentation box
+        # Dynamic active status box
+        if st.session_state.api_key:
+            status_color = "#22c55e"
+            status_text = "ACTIVE"
+            status_desc = "AI Psychological Agent is online. Deep OLQ analysis is enabled."
+            bg_color = "rgba(34, 197, 94, 0.08)"
+        else:
+            status_color = "#ef4444"
+            status_text = "STANDBY"
+            status_desc = "Using local heuristics. Enter Gemini API Key to activate."
+            bg_color = "rgba(239, 68, 68, 0.08)"
+            
         st.markdown(f"""
-            <div style='background-color: #1e293b; border-left: 6px solid #3b82f6; padding: 16px; border-radius: 8px; margin-top: 4px; border: 1px solid #334155; border-left-width: 6px;'>
-                <span style='color: #3b82f6; font-weight: 700; font-size: 1.1rem;'>ACTIVE FOCUS:</span><br>
-                <span style='color: #ffffff; font-weight: 600; font-size: 1.3rem;'>{st.session_state.current_mode}</span>
+            <div style='background-color: {bg_color}; border: 1px solid rgba(255,255,255,0.08); border-left: 6px solid {status_color}; padding: 20px; border-radius: 12px; height: 100%; box-sizing: border-box;'>
+                <span style='color: {status_color}; font-weight: 800; font-size: 1.1rem; letter-spacing: 1px;'>PSYCHOLOGIST AGENT</span><br>
+                <span style='color: #ffffff; font-weight: 800; font-size: 2rem; margin: 8px 0; display: block;'>{status_text}</span>
+                <span style='color: #94a3b8; font-size: 0.88rem; line-height: 1.4;'>{status_desc}</span>
             </div>
         """, unsafe_allow_html=True)

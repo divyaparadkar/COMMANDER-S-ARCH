@@ -8,9 +8,8 @@ _sia = None
 def get_sentiment_analyzer():
     global _sia
     if _sia is None:
-        # pyrefly: ignore [missing-import]
-        import nltk
-        from nltk.sentiment.vader import SentimentIntensityAnalyzer  # pyrefly: ignore [missing-import]
+        import nltk  # type: ignore
+        from nltk.sentiment.vader import SentimentIntensityAnalyzer  # type: ignore
         try:
             _sia = SentimentIntensityAnalyzer()
         except LookupError:
@@ -114,7 +113,7 @@ def local_analyze_text(text: str) -> dict:
     word_count = len(words)
     
     try:
-        import nltk
+        import nltk  # type: ignore
         sentences = nltk.sent_tokenize(text)
         sentence_count = len(sentences)
     except Exception:
@@ -189,8 +188,7 @@ def gemini_analyze_text(text: str, api_key: str, test_type: str, context: str = 
         return local_res
         
     try:
-        # pyrefly: ignore [missing-import]
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore
         genai.configure(api_key=api_key)
         # Using gemini-2.5-flash as default, fallback to gemini-1.5-flash if needed
         # Initialize generative model with the psychologist system instruction
@@ -240,8 +238,7 @@ def generate_interview_questions(profile: str, api_key: str, piq_data: dict = No
         return random.sample(questions, min(5, len(questions)))
         
     try:
-        # pyrefly: ignore [missing-import]
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         
@@ -292,8 +289,7 @@ def evaluate_interview_answer(question: str, answer: str, api_key: str) -> dict:
         return local_analyze_text(answer)
         
     try:
-        # pyrefly: ignore [missing-import]
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
@@ -379,8 +375,7 @@ def analyze_piq_data(piq_data: dict, api_key: str) -> dict:
         }
 
     try:
-        # pyrefly: ignore [missing-import]
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
@@ -459,8 +454,7 @@ def evaluate_lecturette_speech(topic: str, speech_text: str, api_key: str) -> di
         return local_result
 
     try:
-        # pyrefly: ignore [missing-import]
-        import google.generativeai as genai
+        import google.generativeai as genai  # type: ignore
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""

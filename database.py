@@ -2,12 +2,13 @@ import sqlite3
 import hashlib
 import os
 import json
+import re
 from typing import Dict, List, Optional, Tuple
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssb_prep.db")
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -59,16 +60,40 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
+
+    # Create sessions table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            expiry REAL NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
     
     conn.commit()
     conn.close()
 
 def register_user(username: str, password: str, email: Optional[str] = None) -> Tuple[bool, str]:
-    """Register a new user in the database."""
+    """Register a new user in the database with validation."""
     username = username.strip()
     if not username or not password:
         return False, "Username and password cannot be empty."
         
+    if len(username) < 3:
+        return False, "Username must be at least 3 characters long."
+        
+    if not re.match(r"^[a-zA-Z0-9_-]+$", username):
+        return False, "Username can only contain alphanumeric characters, underscores, and hyphens."
+        
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters long."
+        
+    if email:
+        email = email.strip()
+        if not re.match(r"^[^@]+@[^@]+\.[^@]+$", email):
+            return False, "Invalid email format."
+            
     password_hash = hash_password(password)
     
     conn = get_db_connection()
@@ -189,5 +214,55 @@ def update_user_password(user_id: int, new_password: str) -> Tuple[bool, str]:
         return True, "Password changed successfully."
     except Exception as e:
         return False, f"Database error: {str(e)}"
+    finally:
+        conn.close()
+
+def create_session(user_id: int) -> str:
+    """Create a new session token for the user, valid for 30 days."""
+    import uuid
+    import time
+    token = str(uuid.uuid4())
+    expiry = time.time() + 30 * 24 * 60 * 60  # 30 days
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO sessions (token, user_id, expiry) VALUES (?, ?, ?)",
+            (token, user_id, expiry)
+        )
+        conn.commit()
+        return token
+    finally:
+        conn.close()
+
+def verify_session(token: str) -> Optional[int]:
+    """Verify session token and return user_id if valid."""
+    import time
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "SELECT user_id, expiry FROM sessions WHERE token = ?",
+            (token,)
+        )
+        row = cursor.fetchone()
+        if row:
+            if row['expiry'] > time.time():
+                return row['user_id']
+            else:
+                # Expired session, clean up
+                cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+                conn.commit()
+        return None
+    finally:
+        conn.close()
+
+def delete_session(token: str):
+    """Delete a session token."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
     finally:
         conn.close()
