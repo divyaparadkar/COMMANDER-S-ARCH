@@ -1,8 +1,10 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st  # type: ignore
 import time
-import os
 import random
 from image_bank import get_random_ppdt, get_ppdt_logo, get_wat_logo, get_srt_logo, get_interview_logo, get_piq_logo, get_oir_logo, get_lecturette_logo, get_dashboard_logo, get_main_app_logo, get_agent_logo
 from text_analyzer import local_analyze_text, gemini_analyze_text, generate_interview_questions, evaluate_interview_answer, analyze_piq_data, evaluate_lecturette_speech
