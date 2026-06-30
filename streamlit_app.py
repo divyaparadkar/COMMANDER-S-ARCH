@@ -4,6 +4,21 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st  # type: ignore
+import streamlit.components.v1 as components
+
+# Define st.iframe helper as it is not natively in streamlit
+def streamlit_iframe(html_code, height=None, scrolling=False):
+    components.html(html_code, height=height, scrolling=scrolling)
+st.iframe = streamlit_iframe
+
+# Set page config
+st.set_page_config(
+    page_title="COMMANDER'S ARCH - FOR SSB PREPARATION",
+    page_icon="🎖️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 import time
 import random
 from image_bank import get_random_ppdt, get_ppdt_logo, get_wat_logo, get_srt_logo, get_interview_logo, get_piq_logo, get_oir_logo, get_lecturette_logo, get_dashboard_logo, get_main_app_logo, get_agent_logo
@@ -34,13 +49,6 @@ param_to_mode = {
 }
 mode_to_param = {v: k for k, v in param_to_mode.items()}
 
-# Set page config
-st.set_page_config(
-    page_title="COMMANDER'S ARCH - FOR SSB PREPARATION",
-    page_icon="🎖️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
 
 # Custom Styling
 st.markdown("""
